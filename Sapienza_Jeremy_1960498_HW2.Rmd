@@ -1,0 +1,170 @@
+---
+title: "Sapienza Jeremy 1960498 - HW2"
+author: "Sapienza Jeremy 1960498"
+date: "6/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+```
+
+## 1.a) Describing the Dugong's data
+
+$$~$$
+
+As the first step is important to illustrate the characteristics of the statistical model for dealing with the Dugong's data. Now, we load the main data file where within there are the data interested for our analysis.
+
+```{r}
+dugongdat <- read.csv("./dugong.csv", header = TRUE, sep=",")
+head(dugongdat)
+```
+
+$$~$$
+
+Now, we save the column of lenghts within $y_{obs}$ and the column of ages within $x_{i}$. After that we can show some characteristics of these two variables:
+
+```{r echo=FALSE, include=FALSE}
+y_obs <- dugongdat$Length
+x_i <- dugongdat$Age
+```
+
+### **Information about the lengths of the dugongs**
+
+$$~$$
+
+```{r fig.align="center"}
+cat(paste("The variance of the observations is: ", round(var(y_obs), 3), "\n", sep =""))
+cat("Meanwhile the other features are...\n")
+summary(y_obs)
+hist(y_obs, col="orchid2", main="Distribution of the lenght y_obs", xlab="Length")
+rug(y_obs, lwd=2)
+```
+
+Instead, the...
+
+### **Information about the ages of the dugongs**
+
+$$~$$
+
+```{r fig.align="center"}
+cat(paste("The variance of the observations is: ", round(var(x_i), 3), "\n", sep =""))
+cat("Meanwhile the other features are...\n")
+summary(x_i)
+hist(x_i, col="orchid2", main="Distribution of the age x_i", xlab="Age")
+rug(x_i, lwd=2)
+```
+
+### **Analyzing the informations together**
+
+$$~$$
+
+As we can seen, in this homework the statistical model is described by a non-linear regression model; for this reason we want to see something interest considering these two variables together:
+
+```{r echo=FALSE, fig.align="center"}
+plot(x_i, y_obs, col="orchid2", xlab="Age", ylab="Length", pch = 19, main = "The Dugong's Data")
+grid()
+```
+
+As you can seen above, this suggests that the statistical model should be a *non-linear* regression, also the fact of the correlation of these two variables is $\sim \textit{0.8296}$ and the covariance is $\sim \textit{1.7932}$.
+
+$$~$$
+
+# 1.b) Deriving the likelihood function
+
+$$~$$
+
+In order to establish the likelihood function, we assume that the $Y_{i}$ are *i.i.d*. We define the likelihood function in this way, cosidering that $Y_{i} \sim N(\mu_{i}, \tau^{2})$:
+
+$$
+L_{y}(\alpha, \beta, \gamma, x_{i}, \tau^{2}) = \prod_{j=1}^{n} f(y_j|\alpha, \beta, \gamma, x_{i}, \tau^{2}) = \\
+= \prod_{j=1}^{n} \frac{1}{\sqrt{2\pi\tau^{2}}} \cdot exp\Big\{-\frac{1}{2\tau^{2}} ( y_{j} - \mu_{i})^{2} \Big\} = \\
+= (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{j=1}^{n}\Big( y_{j} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\}
+$$
+
+$$~$$
+
+# 1.c) Joint prior distribution of the parameters
+
+$$~$$
+
+We need to write the joint prior distribution at stake, considering the $\alpha, \beta, \gamma \,\, and \,\, \tau^{2}$. It is important to denote the fact that the prior is written as a multiplication of whole hyperparameters interested in our analysis:
+
+$$
+\pi(\alpha, \beta, \gamma, \tau^{2}) = f_{Normal(0, \sigma_{\alpha}^{2})}(\alpha) \cdot f_{Normal(0, \sigma_{\beta}^{2})}(\beta) \cdot f_{Unif(0, 1)}(\gamma) \cdot f_{InvGamma(a, b)}(\tau^{2}) \propto \\
+\propto exp\Big\{ -\frac{\alpha^{2}}{2\sigma_{\alpha}^{2}} \Big\} \cdot exp\Big\{ -\frac{\beta^{2}}{2\sigma_{\beta}^{2}} \Big\} \cdot \frac{exp\Big\{ -\frac{b}{\tau^{2}} \Big\}}{\tau^{2(a+1)}} \cdot \mathbf{I}_{[0, 1]}(\gamma)
+$$
+
+In this step, I choose suitable hyperparameters for this statistical model, in order to fit well with our main features recognized before.
+
+$$~$$
+
+### **Giving a suitable choice for tau**
+
+$$~$$
+
+$\tau^2$ is the variance of our observations, we consider a combination of the prior hyper parameters where $\tau^2 \sim InvGamma(a, b)$ and maybe $InvGamma(a, b)$ should give 0.075 = Var(y_obs):   
+
+```{r echo=FALSE, fig.align="center"}
+library(invgamma)
+a <- c(0.5, 1.5, 3.5, 5.5, 7.5, 9.5, 15, 20)
+b <- c(0.5, 1.5, 3.5, 5.5, 7.5, 9.5, 15, 20)
+
+# check the particular good combination manually and then dinamically
+curve(dinvgamma(x, shape = a[8], rate = b[2]), col = "red", lwd = 3, ylim = c(0, 25), xlim = c(0, 0.5), xlab = expression(tau^2), ylab = expression(pi(tau^2)), main = "The suitable choiche of tau")
+for(i in 1:length(a)){
+  for(j in 1:length(b)){
+    curve(dinvgamma(x, shape = a[i], rate = b[j]), col = randomcoloR::randomColor(), add = TRUE)
+  }
+}
+
+abline(v = var(y_obs), lwd = 2)
+grid()
+```
+
+As we shown above, the good prior parameters a and b for the hyperparameter $\tau^2$ are a = 20 and b = 1.5, because they give a small uncertainty than others.
+
+$$~$$
+
+### **Giving a suitable choice for mu**
+
+$$~$$
+
+After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper-values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. In this moment, we want to find a mean that is $\approx mean(y_{obs} = 2.335)$. To have this we make some combinations of $\alpha, \beta \,\, and \,\, \gamma$:
+
+```{r echo=FALSE, fig.align="center"}
+alpha <- c(3.15, 6, 9, 11)
+beta <- unlist(lapply(alpha, function(x) round(x/3,1)))
+gamma <- unlist(lapply(alpha, function(x) round(x/4,1)))
+
+mu_i <- function(obs, alpha, beta, gamma) return(alpha - (beta*(gamma)^obs))
+
+# check the particular good combination manually and then dinamically
+f_xi <- unlist(lapply(x_i, mu_i, alpha[1], beta[1], gamma[1]))
+plot(density(f_xi), col = "red", lwd = 3, xlab = expression(mu), ylab = expression(pi(mu)), xlim=c(1,4), main = "The suitable choiche of mu")
+
+for(i in 1:length(alpha)){
+  for(j in 1:length(beta)){
+    for(k in 1:length(gamma)){
+      f_xi <- unlist(lapply(x_i, mu_i, alpha[i], beta[j], gamma[k]))
+      lines(density(f_xi), col = randomcoloR::randomColor())
+    }
+  }
+}
+
+abline(v = mean(y_obs), lwd = 2)
+grid()
+```
+
+Apparently, the suitable choiche of mu is given by the hyper parameters fixed as:
+
+- $\alpha$ = 3.15
+- $\beta$ = 1.1
+- $\gamma$ = 0.8
+
+$$~$$
+
+# 1.d) Functional form of all *full-conditionals* 
+
+$$~$$
