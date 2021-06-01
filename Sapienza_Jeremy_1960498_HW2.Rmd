@@ -17,7 +17,8 @@ $$~$$
 As the first step is important to illustrate the characteristics of the statistical model for dealing with the Dugong's data. Now, we load the main data file where within there are the data interested for our analysis.
 
 ```{r}
-dugongdat <- read.csv("./dugong.csv", header = TRUE, sep=",")
+dugongdat <- read.delim2("./dugong-data.txt", header = TRUE, sep = "", dec = ",", stringsAsFactors = FALSE)
+dugongdat <- dugongdat[, -c(1)]
 head(dugongdat)
 ```
 
@@ -26,8 +27,8 @@ $$~$$
 Now, we save the column of lenghts within $y_{obs}$ and the column of ages within $x_{i}$. After that we can show some characteristics of these two variables:
 
 ```{r echo=FALSE, include=FALSE}
-y_obs <- dugongdat$Length
-x_i <- dugongdat$Age
+y_obs <- as.numeric(dugongdat$Length)
+x_i <- as.numeric(dugongdat$Age)
 ```
 
 ### **Information about the lengths of the dugongs**
@@ -78,9 +79,9 @@ $$~$$
 In order to establish the likelihood function, we assume that the $Y_{i}$ are *i.i.d*. We define the likelihood function in this way, cosidering that $Y_{i} \sim N(\mu_{i}, \tau^{2})$:
 
 $$
-L_{y}(\alpha, \beta, \gamma, x_{i}, \tau^{2}) = \prod_{j=1}^{n} f(y_j|\alpha, \beta, \gamma, x_{i}, \tau^{2}) = \\
-= \prod_{j=1}^{n} \frac{1}{\sqrt{2\pi\tau^{2}}} \cdot exp\Big\{-\frac{1}{2\tau^{2}} ( y_{j} - \mu_{i})^{2} \Big\} = \\
-= (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{j=1}^{n}\Big( y_{j} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\}
+L_{y_{obs}}(\alpha, \beta, \gamma, x_{i}, \tau^{2}) = \prod_{i=1}^{n} f(y_i|\alpha, \beta, \gamma, x_{i}, \tau^{2}) = \\
+= \prod_{i=1}^{n} \frac{1}{\sqrt{2\pi\tau^{2}}} \cdot exp\Big\{-\frac{1}{2\tau^{2}} ( y_{i} - \mu_{i})^{2} \Big\} = \\
+= (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\}
 $$
 
 $$~$$
@@ -95,6 +96,7 @@ $$
 \pi(\alpha, \beta, \gamma, \tau^{2}) = f_{Normal(0, \sigma_{\alpha}^{2})}(\alpha) \cdot f_{Normal(0, \sigma_{\beta}^{2})}(\beta) \cdot f_{Unif(0, 1)}(\gamma) \cdot f_{InvGamma(a, b)}(\tau^{2}) \propto \\
 \propto exp\Big\{ -\frac{\alpha^{2}}{2\sigma_{\alpha}^{2}} \Big\} \cdot exp\Big\{ -\frac{\beta^{2}}{2\sigma_{\beta}^{2}} \Big\} \cdot \frac{exp\Big\{ -\frac{b}{\tau^{2}} \Big\}}{\tau^{2(a+1)}} \cdot \mathbf{I}_{[0, 1]}(\gamma)
 $$
+<!--you need to put the indicator functions in the latex formulaa-->
 
 In this step, I choose suitable hyperparameters for this statistical model, in order to fit well with our main features recognized before.
 
@@ -134,15 +136,17 @@ $$~$$
 After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper-values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. In this moment, we want to find a mean that is $\approx mean(y_{obs} = 2.335)$. To have this we make some combinations of $\alpha, \beta \,\, and \,\, \gamma$:
 
 ```{r echo=FALSE, fig.align="center"}
-alpha <- c(3.15, 6, 9, 11)
-beta <- unlist(lapply(alpha, function(x) round(x/3,1)))
-gamma <- unlist(lapply(alpha, function(x) round(x/4,1)))
+alpha <- c(3.046032); beta <- c(7.239731); gamma <- c(0.7069656)
+
+alpha <- append(alpha, rnorm(2, mean = 0, sd = 4)) 
+beta <- append(beta, rnorm(2, mean = 0, sd = 6))
+gamma <- append(gamma, runif(2, min = 0, max = 1))
 
 mu_i <- function(obs, alpha, beta, gamma) return(alpha - (beta*(gamma)^obs))
 
 # check the particular good combination manually and then dinamically
 f_xi <- unlist(lapply(x_i, mu_i, alpha[1], beta[1], gamma[1]))
-plot(density(f_xi), col = "red", lwd = 3, xlab = expression(mu), ylab = expression(pi(mu)), xlim=c(1,4), main = "The suitable choiche of mu")
+plot(density(f_xi), col = "red", lwd = 3, lty = 2, xlab = expression(mu), ylab = expression(pi(mu)), xlim=c(1,4), main = "The suitable choiche of mu")
 
 for(i in 1:length(alpha)){
   for(j in 1:length(beta)){
@@ -159,12 +163,347 @@ grid()
 
 Apparently, the suitable choiche of mu is given by the hyper parameters fixed as:
 
-- $\alpha$ = 3.15
-- $\beta$ = 1.1
-- $\gamma$ = 0.8
+- $\alpha \approx$ 3.05
+- $\beta \approx$ 7.24
+- $\gamma \approx$ 0.70
+
+with the standard deviation prior parameters of $\alpha \,\, and \,\, \beta$ are correspectively $\sigma_{\alpha}^{2}$ = 4 and $\sigma_{\beta}^{2}$ = 6.
 
 $$~$$
 
-# 1.d) Functional form of all *full-conditionals* 
+# 1.d) Functional form of all *full-conditionals 
 
 $$~$$
+
+To derive the full-conditionals is important to specify, how much is needed in our case. The number of full-conditionals required in this case is 4, considering our hyperparameters: $\alpha, \beta, \gamma, \tau^{2}$.
+
+Before starting, is important to denote that $\mu_{i}$ is given by $\alpha, \beta, \gamma, x_{i}$ and $x_{i} = {x_{1}, ... , x_{n}}$. So, let's start with $\tau^{2}$:
+
+$$
+\pi(\tau^{2}|\alpha, \beta, \gamma, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\tau^{2}) \propto \\
+\propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\tau^{2}) \propto \\
+\propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot (\tau^{2})^{-(a+1)} exp\Big\{ -\frac{b}{\tau^{2}} \Big\} \propto \\
+\propto (\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{b}{\tau^{2}} \Big\} \cdot (\tau^{2})^{-(a+1)} \propto \\
+\propto (\tau^{2})^{-(\frac{n}{2}+a+1)} \cdot exp\Big\{ -\frac{\sum_{i=1}^{n}( y_{i} - (\alpha - \beta\gamma^{x_{i}}))^{2}+b}{2\tau^{2}} \Big\}
+$$
+
+```{r include=FALSE}
+# full-conditional with known distro of tau
+fullcond_post_tau <- function(y_obs, a, b, alpha, beta, gamma, x_ages){
+  shape_post <- a+length(y_obs)/2
+  
+  rate_post <- 0
+  for(i in 1:length(y_obs)) rate_post <- rate_post + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
+  rate_post <- (b + rate_post)/2
+  
+  draw <- invgamma::rinvgamma(n = 1, shape = shape_post, rate = rate_post)
+  return(draw)
+}
+```
+
+
+Instead, the other full-conditionals are, for $\alpha$:
+
+$$
+\pi(\alpha|\tau^{2}, \beta, \gamma, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\alpha) \propto \\
+\propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\alpha) \propto \\
+\propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot exp\Big\{ -\frac{(\alpha)^2}{2\sigma_{\alpha}^{2}} \Big\} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{(\alpha)^2}{2\sigma_{\alpha}^{2}} \Big\}
+$$
+
+```{r include=FALSE}
+# unknown distro of alpha
+notknown_fullcond_post_alpha <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_alpha){
+  # get the summatory of each yobs with each ui
+  sum_for_post_alpha <- 0
+  for(i in 1:length(y_obs)) sum_for_post_alpha <- sum_for_post_alpha + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
+  
+  # update the theta hyperparameter(alpha or beta depends the formula is the same! changes sligthly)
+  alpha_post <- (-1/(2*tau))*sum_for_post_alpha - (alpha^2)/(2*sigma_2_alpha)
+  return(alpha_post)
+}
+```
+
+for $\beta$:
+
+$$
+\pi(\beta|\tau^{2}, \alpha, \gamma, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\beta) \propto \\
+\propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\beta) \propto \\
+\propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot exp\Big\{ -\frac{(\beta)^2}{2\sigma_{\beta}^{2}} \Big\} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{(\beta)^2}{2\sigma_{\beta}^{2}} \Big\}
+$$
+
+```{r include=FALSE}
+# unknown distro of beta
+notknown_fullcond_post_beta <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_beta){
+  # get the summatory of each yobs with each ui
+  sum_for_post_beta <- 0
+  for(i in 1:length(y_obs)) sum_for_post_beta <- sum_for_post_beta + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
+  
+  # update the theta hyperparameter(alpha or beta depends the formula is the same! changes sligthly)
+  beta_post <- (-1/(2*tau))*sum_for_post_beta - (beta^2)/(2*sigma_2_beta)
+  return(beta_post)
+}
+```
+
+for $\gamma$:
+
+$$
+\pi(\gamma|\tau^{2}, \alpha, \beta, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\gamma) \propto \\
+\propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\gamma) \propto \\
+\propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot \frac{1}{1-0} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\}
+$$
+
+```{r include=FALSE}
+# unknown distro of gamma
+notknown_fullcond_post_gamma <- function(y_obs, alpha, beta, gamma, x_ages, tau){
+  # get the summatory of each yobs with each ui
+  sum_for_postgamma <- 0
+  for(i in 1:length(y_obs)) sum_for_postgamma <- sum_for_postgamma + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
+  
+  # update the theta hyperparameter gamma
+  gamma_post <- ((-1/(2*tau))*sum_for_postgamma)*1
+  return(gamma_post)
+}
+```
+
+As we can seen above, there are known and unknown distributions.
+
+$$~$$
+
+# 1.e) Which distribution can you recognize within standard parametric families so that direct simulation from full conditional can be easily implemented
+
+$$~$$
+
+As we can seen, in the previous section we derived the full-conditionals of the four hyper-parameters $\alpha, \beta, \gamma, \tau^{2}$. We recognized only the distribution of:
+
+$$
+\tau^{2} \sim InvGamma\Big(a+\frac{n}{2}, b + \frac{\sum_{i=1}^{n}(y_{i}-(\alpha-\beta\gamma^{x_{i}}))^2}{2} \Big)
+$$ 
+
+To be the one that is within the standard parametric families and its direct similation from full conditional is easily implemented.
+
+$$~$$
+
+# 1.f) Using a suitable Metropolis-within-Gibbs algorithm simulate a Markov chain (T = 10000) to approximate the posterior distribution for the above model
+
+$$~$$
+
+In this step is important to use a way to reproduct the Hybrid-Kernels composed in this case as Metropolis-within-Gibbs. For this reason we simply have Gibbs samples through the know distribution of $\tau^{2}$ and after that we infer on the other three hyperparameters where their distribution is not known, but we can handle that *unormalized* full conditionals with the metropolis hastings.
+
+The ***Gibbs Sampling*** is an algorithm for getting draws from a posterior when conditional posteriors are known, while we can use ***Metropolis-Hastings (MH)*** to sample from non-conjugate conditional posteriors within each blocked Gibbs iteration.
+
+the conditional posterior of $\tau^{2}$ is conjugate. Inside each Gibbs iteration we can use a standard function to sample from the inverse gamma; we don't need other second sampling here. Instead, the other hyperparameters need to have a second sampler that is the ***MH***.
+
+### Metropolis-Hastings Algorithm
+
+The goal is to sample from each conditional posteriors. As we can seen below the MH sampler works in this way (for the explanation we define a general hyperparameter as $\theta$):
+
+1. Define $\pi$ as to be the target density and produce a started candidate of $\theta^{(0)}$ to start the sampling. 
+
+2. Let $p_{x}(y)$ to be a ***proposal distribution***, the value of x depends on the present value that has in the chain.
+
+3. Draw a candidate $Y_{t+1} \sim p_{x}(y)$ and denotes that y is the realized candidate $Y_{t+1} = y$
+
+4. Decide whether or not the candidate is accepted as the next state of this chain at time t+1, if not set the next state equal to the current state x of the chain:
+
+$$
+X_{t+1} = 
+\begin{cases}
+  \text{y with probability} \,\, \alpha(x, y) \\
+  \text{x with probability} \,\, 1-\alpha(x, y)
+\end{cases}
+$$
+
+where $\alpha(x,y)$ = $min\Big\{\frac{\pi(y)p_{y}(x)}{\pi(x)p_{x}(y)},1 \Big\}$
+
+So, proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there.
+
+```{r}
+# MH algorithm to sample from the full-cond of alpha
+notknown_fullcond_post_alpha_MH <- function(y_obs, currentstate, beta, gamma, x_ages, tau, sigma_2_a, a, greekpi, mhtrials){ # greekpi is the target distro
+  alpha_t <- currentstate # current state of theta in the chain
+  
+  for(i in 1:mhtrials){
+    # draw a candidate for the next/future state of the chain 
+    alpha_prop <- rnorm(n = 1, mean = alpha_t, sd = sqrt(sigma_2_a))
+    
+    # acceptance/rejection auxiliary draw
+    r_num <- greekpi(y_obs = y_obs, alpha = alpha_prop, beta = beta, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_alpha = sigma_2_a)
+    r_den <- greekpi(y_obs = y_obs, alpha = alpha_t, beta = beta, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_alpha = sigma_2_a)
+    
+    r <- exp(r_num-r_den)
+    rmin <- min(r, 1)
+    
+    # acc/rj method
+    omega = runif(1,min=0,max=1)
+    ACCEPT=(omega < rmin)
+    alpha_t <- ifelse(ACCEPT,alpha_prop, alpha_t)
+  }
+  
+  return(alpha_t)
+}
+
+# MH algorithm to sample from the full-cond of beta
+notknown_fullcond_post_beta_MH <- function(y_obs, alpha, currentstate, gamma, x_ages, tau, sigma_2_b, a, greekpi, mhtrials){ # greekpi is the target distro
+  beta_t <- currentstate # current state of theta in the chain
+  
+  for(i in 1:mhtrials){
+    # draw a candidate for the next/future state of the chain 
+    beta_prop <- rnorm(n = 1, mean = beta_t, sd = sqrt(sigma_2_b))
+    
+    # acceptance/rejection auxiliary draw
+    r_num <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta_prop, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_beta = sigma_2_b)
+    r_den <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta_t, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_beta = sigma_2_b)
+    
+    r <- exp(r_num-r_den)
+    rmin <- min(r, 1)
+    
+    # acc/rj method
+    omega = runif(1,min=0,max=1)
+    ACCEPT=(omega < rmin)
+    beta_t <- ifelse(ACCEPT,beta_prop, beta_t)
+  }
+  
+  return(beta_t)
+}
+
+# MH algorithm to sample from the full-cond of gamma
+notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_ages, tau, a, greekpi, mhtrials){ # greekpi is the target distro
+  gamma_t <- currentstate # current state of theta in the chain
+  
+  for(i in 1:mhtrials){
+    # draw a candidate for the next/future state of the chain 
+    gamma_prop <- runif(1, min=0, max=1)
+    
+    # acceptance/rejection auxiliary draw
+    r_num <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta, gamma = gamma_prop, x_ages = x_ages, tau = tau)
+    r_den <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta, gamma = gamma_t, x_ages = x_ages, tau = tau)
+    
+    r <- exp(r_num-r_den)
+    rmin <- min(r, 1)
+    
+    # acc/rj method
+    omega = runif(1,min=0,max=1)
+    ACCEPT=(omega < rmin)
+    gamma_t <- ifelse(ACCEPT,gamma_prop, gamma_t)
+  }
+  
+  return(gamma_t)
+}
+
+# set the number of iterations T
+niter <- 10000
+
+# set the prior parameters of tau and the the prior parameters for sigma(alpha and beta)
+a <- 20 
+b <- 1.5
+sigma_2_a <- 4
+sigma_2_b <- 6
+
+# define the variables at every iteration t
+gibbs_samples <- data.frame(tau = rep(NA, niter), alpha = rep(NA, niter), beta = rep(NA, niter), gamma = rep(NA, niter))
+
+# initialize the state t = 0
+gibbs_samples[1, 1:4] <- c(0.003, 0, 0, 0) # tau, alpha = 3.05, beta = 7.24, gamma = 0.71 
+
+# save for each iteration the mean of the parameters ( useful for the point 1.h )
+mean_at_time_t <- list(mean_tau = rep(NA, niter), mean_alpha = rep(NA, niter), mean_beta = rep(NA, niter), mean_gamma = rep(NA, niter))
+# sampling with the Hybrid-Kernels method
+for(t in 1:niter){
+  # sample from posterior full-conditional of tau
+  gibbs_samples[t+1, "tau"] <- fullcond_post_tau(y_obs, a, b, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_i)
+  
+  # define the random-walk MH for the other parameters alpha, beta and gamma
+  gibbs_samples[t+1, "alpha"] <- notknown_fullcond_post_alpha_MH(y_obs, currentstate = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_a, a = 1, greekpi = notknown_fullcond_post_alpha, mhtrials = 5)
+  
+
+  gibbs_samples[t+1, "beta"] <- notknown_fullcond_post_beta_MH(y_obs, alpha = gibbs_samples[t, "alpha"], currentstate = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_b, a = 1, greekpi = notknown_fullcond_post_beta, mhtrials = 5)
+  
+
+  gibbs_samples[t+1, "gamma"] <- notknown_fullcond_post_gamma_MH(y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], currentstate = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], a = 1, greekpi = notknown_fullcond_post_gamma, mhtrials = 5)
+  
+  # save for each iteration the mean of the parameters ( useful for the point 1.h )
+  mean_at_time_t$mean_alpha[t] <- mean(gibbs_samples[1:t, "alpha"])
+  mean_at_time_t$mean_beta[t] <- mean(gibbs_samples[1:t, "beta"])
+  mean_at_time_t$mean_gamma[t] <- mean(gibbs_samples[1:t, "gamma"])
+  mean_at_time_t$mean_tau[t] <- mean(gibbs_samples[1:t, "tau"])
+}
+```
+
+After running the algorithm, let's go to see the traceplots of these hyperparameters
+
+$$~$$
+
+# 1.g) Show the 4 univariate trace-plots of the simulations of each parameter
+
+$$~$$
+
+In this section we show the behaviours of these 4 hyperparameters in order to see interesting results:
+
+```{r echo=FALSE, fig.align="center"}
+plot(gibbs_samples[, "tau"],type="b",xlab="t",ylab=expression(tau^2))
+title(main="Trace plot of the MC produced by means of MH with RW proposal")
+grid()
+plot(gibbs_samples[, "alpha"],type="b",xlab="t",ylab=expression(alpha))
+title(main="Trace plot of the MC produced by means of MH with RW proposal")
+grid()
+plot(gibbs_samples[, "beta"],type="b",xlab="t",ylab=expression(beta))
+title(main="Trace plot of the MC produced by means of MH with RW proposal")
+grid()
+plot(gibbs_samples[, "gamma"],type="b",xlab="t",ylab=expression(gamma))
+title(main="Trace plot of the MC produced by means of MH with RW proposal")
+grid()
+```
+
+$$~$$
+
+The plots obtained are pretty interesting! Is important to denote that $\tau^{2}$ is fixed by a number larger than 0, to avoid the problem of infinity value. If we change also the values of a, b, $\sigma_{a}^{2}$ and $\sigma_{b}^{2}$ the behaviour will be similar.
+
+$$~$$
+
+# 1.h) Evaluate graphically the behaviour of the empirical averages ˆIt with growing t = 1, ..., T
+
+$$~$$
+
+In this section we want to see the empirical average of $\mathbf{\hat{I}}_{t}$ increasing the value of $t \, = \, 1,...,T$. Before to start we want to write the formula of $\mathbf{\hat{I}}_{t}$ that is:
+
+$$~$$
+
+$$
+\mathbf{I} \approx \mathbf{\hat{I}}_{t} = \frac{1}{T} \sum_{i=1}^{T} h(\theta^{(i)})
+$$
+
+$$~$$
+
+is important to write $\approx$ because this leverages the SLLN theorem and we want also to confirm this assumption! So, let's see the results:
+
+$$~$$
+
+```{r echo=FALSE, fig.align="center"}
+plot(mean_at_time_t$mean_tau,type="l",xlab="t",ylab=expression(tau^2), lwd=2, col = "orchid2")
+title(main="Empirical Average through T iterations")
+grid()
+plot(mean_at_time_t$mean_alpha,type="l",xlab="t",ylab=expression(alpha), lwd=2, col = "orchid2")
+title(main="Empirical Average through T iterations")
+grid()
+plot(mean_at_time_t$mean_beta,type="l",xlab="t",ylab=expression(beta), lwd=2, col = "orchid2")
+title(main="Empirical Average through T iterations")
+grid()
+plot(mean_at_time_t$mean_gamma,type="l",xlab="t",ylab=expression(gamma), lwd=2, col = "orchid2")
+title(main="Empirical Average through T iterations")
+grid()
+```
+
+$$~$$
+
+As we can seen above, the mean of each hyperparameters follows approximately the behaviour of the markov chain, this is amazing!
+
+$$~$$
+
+# 1.i) Provide estimates for each parameter together with the approximation error and explain how you have evaluated such error
+
+$$~$$
+
+
