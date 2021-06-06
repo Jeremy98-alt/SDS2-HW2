@@ -417,15 +417,22 @@ In this section we show the behaviours of these 4 hyperparameters in order to se
 ```{r echo=FALSE, fig.align="center"}
 plot(gibbs_samples[, "tau"],type="l",xlab="t",ylab=expression(tau^2), col = randomcoloR::randomColor(), ylim = c(0, 0.35))
 title(main="Trace plot of the MC")
+abline(h=mean(gibbs_samples[, "tau"]), lty = 3, lwd = 2)
 grid()
+
 plot(gibbs_samples[, "alpha"],type="l",xlab="t",ylab=expression(alpha), col = randomcoloR::randomColor(), ylim = c(2.0, 3.2))
 title(main="Trace plot of the MC")
+abline(h=mean(gibbs_samples[, "alpha"]), lty = 3, lwd = 2)
 grid()
+
 plot(gibbs_samples[, "beta"],type="l",xlab="t",ylab=expression(beta), col = randomcoloR::randomColor(), ylim = c(1, 1.3))
 title(main="Trace plot of the MC")
+abline(h=mean(gibbs_samples[, "beta"]), lty = 3, lwd = 2)
 grid()
+
 plot(gibbs_samples[, "gamma"],type="l",xlab="t",ylab=expression(gamma), col = randomcoloR::randomColor())
 title(main="Trace plot of the MC")
+abline(h=mean(gibbs_samples[, "gamma"]), lty = 3, lwd = 2)
 grid()
 ```
 
@@ -697,3 +704,173 @@ $$~$$
 
 $$~$$
 
+Considering the Markov Chain $(X_{t})_{t \geqslant 0}$ defined on the state space $\mathbb{S} = \{1, 2, 3\}$ and based on the ***Transiction probability matrix (TPM)*** that defines the transiction probabilities through our states:
+
+$$
+TPM = \begin{bmatrix}
+    0 & \frac{1}{2} & \frac{1}{2} \\
+    \frac{5}{8} & \frac{1}{8} & \frac{1}{4} \\
+    \frac{2}{3} & \frac{1}{3} & 0
+\end{bmatrix}
+$$
+
+```{r include=FALSE}
+S <- c(1, 2, 3)
+tpm <- matrix( c(0, 1/2, 1/2,
+                 5/8, 1/8, 1/4,
+                 2/3, 1/3, 0), 
+               nrow=3, byrow=T)
+```
+
+<!-- insert the igraph plot (?) -->
+
+$$~$$
+
+## 2.a) Starting at time t = 0 in the state X_0 = 1 simulate the Markov chain with distribution assigned as above for t = 1000 consecutive times
+
+$$~$$
+
+As mentioned in the title, we try to make the simulations of the Markov Chain with the distribution described in this test, part 2. 
+
+We iterate the markov chain 1000 consecutive times as follows, starting at state 1:
+
+$$~$$
+
+```{r}
+# defining the number of iterations and the starting point
+niter <- 1000
+current_state <- 1 
+
+# allocates the array where stores the simulations
+nsim <- rep(NA, niter+1)
+
+# initialize the state
+nsim[1] <- current_state
+
+for(t in 1:niter){
+  nsim[t+1]<-sample(S, size=1, prob= tpm[nsim[t],])
+}
+
+cat("We counted the relative frenquencies with their proportions \n\n")
+table(nsim)
+```
+
+$$~$$
+
+## 2.b) compute the empirical relative frequency of the two states in your simulation 
+
+$$~$$
+
+As mentioned in this section, we put above the relative frenquencies:
+
+$$~$$
+
+```{r}
+prop.table(table(nsim))
+```
+
+$$~$$
+
+## 2c) repeat the simulation for 500 times and record only the final state at time t = 1000 for each of the 500 simulated chains. Compute the relative frequency of the 500 final states. What distribution are you approximating in this way? Try to formalize the difference between this point and the previous point.
+
+$$~$$
+
+As shown in the title, we consider to simulate 500 times 1000 simulations of the Markov Chain:
+
+$$~$$
+
+```{r}
+markovchainsampling <- function(tpm, niter = 1000){
+  # defining the number of iterations and the starting point
+  current_state <- 1 
+  
+  # allocates the array where stores the simulations
+  nsim <- rep(NA, niter+1)
+  
+  # initialize the state
+  nsim[1] <- current_state
+  
+  for(t in 1:niter){
+    nsim[t+1]<-sample(S, size=1, prob= tpm[nsim[t],])
+  }
+  
+  return(list(endstate = tail(nsim, n = 1), relativefrequencies = nsim))
+}
+
+# number of chains
+nchains <- 500
+
+# declares the main variables where to store the values
+final_state <- rep(NA, nchains)
+final_relative_frequencies <- matrix(NA, ncol=niter+1, nrow=500)
+
+for(xT in 1:nchains){
+  out <- markovchainsampling(tpm = tpm)
+  
+  final_state[xT] <- out$endstate
+  final_relative_frequencies[xT, ] <- out$relativefrequencies
+}
+```
+
+
+$$~$$
+
+We can show some simple plots and summaries of this previous step:
+
+$$~$$
+
+```{r warning=FALSE, echo=FALSE, fig.align="center"}
+table(final_state)
+prop.table(table(final_state))
+```
+
+$$~$$
+
+As we can see above, the behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain, we are going to focus on the steady state (also known as stationary state), we want to reach in a better into the stationary state.
+
+Now, we want to highlight the empirical mean of these simulations based on iteration of 500 times of our markov chain for each state:
+
+$$~$$
+
+```{r warning=FALSE, echo=FALSE, fig.align="center"}
+# considering the whole simulations
+dt_fn_freq <- t(apply(final_relative_frequencies, 1, function(x){
+  prop.table(table(x))
+}))
+
+hist(dt_fn_freq[, 1], main = "Behaviour of 500 simulations of Markov Chain with t =  1000 iterations", col = randomcoloR::randomColor(), xlab = "Empirical Frequency of state 1")
+cat(paste("The mean relative frequency for the state 1 is exactly: ", mean(dt_fn_freq[, 1]), "\n", sep=""))
+
+hist(dt_fn_freq[, 2], main = "Behaviour of 500 simulations of Markov Chain with t =  1000 iterations", col = randomcoloR::randomColor(), xlab = "Empirical Frequency of state 2")
+cat(paste("The mean relative frequency for the state 2 is exactly: ", mean(dt_fn_freq[, 2]), "\n", sep=""))
+
+hist(dt_fn_freq[, 3], main = "Behaviour of 500 simulations of Markov Chain with t =  1000 iterations", col = randomcoloR::randomColor(), xlab = "Empirical Frequency of state 3")
+cat(paste("The mean relative frequency for the state 3 is exactly: ", mean(dt_fn_freq[, 3]), "\n", sep=""))
+```
+
+$$~$$
+
+The stationary distribution is supported by the definition of the ***invariant distribution*** in the discrete case, we highligthed the fact the:
+
+- Given the transiction probability P
+- Given the target distribution $\pi$ where a state $X_{0} \sim \pi$ belongs to
+
+the invariant distribution is defined as: $\pi^{T} \cdot P = \pi \Leftrightarrow P^{T} \cdot \pi - I \cdot \pi = 0$. Multiplying the j-th column of the P with $\pi$, we have $\sum_{r=1}^{d}P_{r_{j}} \cdot \pi_{j} = \pi_{j} \,\,\,\, \forall j = {1, ..., d}$ this will bring you to be in an equilibrium condition.
+
+$$~$$
+
+## 2.d) compute the theoretical stationary distribution and explain how you have obtained it
+
+$$~$$
+
+$$~$$
+
+## 2.e) is it well approximated by the simulated empirical relative frequencies computed in (b) and (c)?
+
+$$~$$
+
+$$~$$
+
+## 2.f) what happens if we start at t = 0 from state X_0 = 2 instead of X_0 = 1?
+
+$$~$$
