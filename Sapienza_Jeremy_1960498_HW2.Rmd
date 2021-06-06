@@ -106,18 +106,19 @@ $$~$$
 
 $$~$$
 
-$\tau^2$ is the variance of our observations, we consider a combination of the prior hyper parameters where $\tau^2 \sim InvGamma(a, b)$ and maybe $InvGamma(a, b)$ should give 0.075 = Var(y_obs):   
+$\tau^2$ is the variance of our observations, we consider a combination of the prior hyper parameters, where $\tau^2 \sim InvGamma(a, b)$, through simulations we obtained this behaviours:
+
 
 ```{r echo=FALSE, fig.align="center"}
 library(invgamma)
-a <- c(0.5, 1.5, 3.5, 5.5, 7.5, 9.5, 15, 20)
-b <- c(0.5, 1.5, 3.5, 5.5, 7.5, 9.5, 15, 20)
+a <- c(0.5, 1.5, 3.5, 5.5, 7.5, 9.5, 15, 21)
+b <- c(0.5, 1.7, 3.5, 5.5, 7.5, 9.5, 15, 20)
 
 # check the particular good combination manually and then dinamically
-curve(dinvgamma(x, shape = a[8], rate = b[2]), col = "red", lwd = 3, ylim = c(0, 25), xlim = c(0, 0.5), xlab = expression(tau^2), ylab = expression(pi(tau^2)), main = "The suitable choiche of tau")
+curve(invgamma::dinvgamma(x, shape = a[8], rate = b[2]), col = "red", lwd = 3, ylim = c(0, 25), xlim = c(0, 0.5), xlab = expression(tau^2), ylab = expression(pi(tau^2)), main = "The suitable choiche of tau")
 for(i in 1:length(a)){
   for(j in 1:length(b)){
-    curve(dinvgamma(x, shape = a[i], rate = b[j]), col = randomcoloR::randomColor(), add = TRUE)
+    curve(invgamma::dinvgamma(x, shape = a[i], rate = b[j]), col = randomcoloR::randomColor(), add = TRUE)
   }
 }
 
@@ -125,7 +126,7 @@ abline(v = var(y_obs), lwd = 2)
 grid()
 ```
 
-As we shown above, the good prior parameters a and b for the hyperparameter $\tau^2$ are a = 20 and b = 1.5, because they give a small uncertainty than others.
+As we shown above, the good prior parameters a and b for the hyperparameter $\tau^2$ are a = 21 and b = 1.7, because they give a small uncertainty than others.
 
 $$~$$
 
@@ -133,45 +134,44 @@ $$~$$
 
 $$~$$
 
-After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper-values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. In this moment, we want to find a mean that is $\approx mean(y_{obs} = 2.335)$. To have this we make some combinations of $\alpha, \beta \,\, and \,\, \gamma$:
+After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper-values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. Given the fact that $\mu_{i}$ is described as a non-linear model, we need to choose suitable hyperparameters for $\alpha \, \text{and} \, \beta$, so the first hyperparameter needs to choose the variance denoted as $\sigma_{\alpha}^{2}$ by simulations:
 
-```{r echo=FALSE, fig.align="center"}
-alpha <- c(3.046032); beta <- c(7.239731); gamma <- c(0.7069656)
+```{r echo=FALSE, fig.align="center", warning=FALSE}
+# Fitting the model using the function fit
+fitted <- lm(Length = x_i, data = dugongdat)
 
-alpha <- append(alpha, rnorm(2, mean = 0, sd = 4)) 
-beta <- append(beta, rnorm(2, mean = 0, sd = 6))
-gamma <- append(gamma, runif(2, min = 0, max = 1))
+sig_alph <- c(6, 1, 7, 8, 10, 20)
+curve(dnorm(x, mean = 0, sd = sqrt(sig_alph[1])), lwd = 2, xlab = expression(alpha), ylab = "Prior alpha", ylim = c(0, 0.5), xlim=c(-6,6), col = "red")
 
-mu_i <- function(obs, alpha, beta, gamma) return(alpha - (beta*(gamma)^obs))
+for(i in 2:length(sig_alph)) curve(dnorm(x, mean = 0, sd = sqrt(sig_alph[i])), add = T, col = randomcoloR::randomColor())
 
-# check the particular good combination manually and then dinamically
-f_xi <- unlist(lapply(x_i, mu_i, alpha[1], beta[1], gamma[1]))
-plot(density(f_xi), col = "red", lwd = 3, lty = 2, xlab = expression(mu), ylab = expression(pi(mu)), xlim=c(1,4), main = "The suitable choiche of mu")
-
-for(i in 1:length(alpha)){
-  for(j in 1:length(beta)){
-    for(k in 1:length(gamma)){
-      f_xi <- unlist(lapply(x_i, mu_i, alpha[i], beta[j], gamma[k]))
-      lines(density(f_xi), col = randomcoloR::randomColor())
-    }
-  }
-}
-
-abline(v = mean(y_obs), lwd = 2)
+# the proper value
+abline(v = coefficients(fitted)[1], lwd = 2, lty = 2, col = "purple")
 grid()
 ```
 
-Apparently, the suitable choiche of mu is given by the hyper parameters fixed as:
+In this case, we want to assign for $\sigma_{\alpha}^{2}$ the value of 6, that shows a lower uncertainty than others, the higher value of probability of the red curve is near to the optimal dashed purple line found. This contains the intercept of the regression.
 
-- $\alpha \approx$ 3.05
-- $\beta \approx$ 7.24
-- $\gamma \approx$ 0.70
+Instead, for $\sigma_{\beta}^{2}$ we find by simulations:
 
-with the standard deviation prior parameters of $\alpha \,\, and \,\, \beta$ are correspectively $\sigma_{\alpha}^{2}$ = 4 and $\sigma_{\beta}^{2}$ = 6.
+```{r echo=FALSE, fig.align="center", warning=FALSE}
+sig_bet <- c(0.05, 0.5, 0.7, 0.9, 1.1, 2)
+curve(dnorm(x, mean = 0, sd = sqrt(sig_bet[1])), lwd = 2, xlab = expression(alpha), ylab = "Prior alpha", ylim = c(0, 2), xlim=c(-1,1), col = "red")
+
+for(i in 2:length(sig_bet)) curve(dnorm(x, mean = 0, sd = sqrt(sig_bet[i])), add = T, col = randomcoloR::randomColor())
+
+# the proper value
+abline(v = coefficients(fitted)[2], lwd = 2, lty = 2, col = "purple")
+grid()
+```
+
+In this case, the value of sigma beta is 0.05, as we can seen above this gives the best fitting.
+
+Instead, for $\gamma$ we have the same prior parameters of the uniform distribution, the range is within 0 and 1.
 
 $$~$$
 
-# 1.d) Functional form of all *full-conditionals 
+# 1.d) Functional form of all full-conditionals 
 
 $$~$$
 
@@ -194,7 +194,7 @@ fullcond_post_tau <- function(y_obs, a, b, alpha, beta, gamma, x_ages){
   
   rate_post <- 0
   for(i in 1:length(y_obs)) rate_post <- rate_post + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
-  rate_post <- (b + rate_post)/2
+  rate_post <- b + rate_post/2
   
   draw <- invgamma::rinvgamma(n = 1, shape = shape_post, rate = rate_post)
   return(draw)
@@ -208,19 +208,22 @@ $$
 \pi(\alpha|\tau^{2}, \beta, \gamma, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\alpha) \propto \\
 \propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\alpha) \propto \\
 \propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot exp\Big\{ -\frac{(\alpha)^2}{2\sigma_{\alpha}^{2}} \Big\} \propto \\
-\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{(\alpha)^2}{2\sigma_{\alpha}^{2}} \Big\}
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{(\alpha)^2}{2\sigma_{\alpha}^{2}} \Big\} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n} \Big( y_{i}^{2} + \alpha^{2} + \beta^{2}\gamma^{2x_{i}} - 2y_{i}\alpha + 2y_{i}\beta\gamma^{x_{i}} -  2\alpha\beta\gamma^{x_{i}} \Big) -\frac{(\alpha)^2}{2\sigma_{\alpha}^{2}} \Big\} \propto \\
+\propto exp\Big\{ -\frac{1}{2} \Big( \frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}\Big)\alpha^{2} + \Big( \frac{\sum_{i=1}^{n} y_{i} + \beta\sum_{i=1}^{n}\gamma^{x_{i}}}{\tau^{2}} \Big)\alpha \Big\}
 $$
 
 ```{r include=FALSE}
 # unknown distro of alpha
-notknown_fullcond_post_alpha <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_alpha){
-  # get the summatory of each yobs with each ui
-  sum_for_post_alpha <- 0
-  for(i in 1:length(y_obs)) sum_for_post_alpha <- sum_for_post_alpha + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
-  
+fullcond_post_alpha <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_alpha){
   # update the theta hyperparameter(alpha or beta depends the formula is the same! changes sligthly)
-  alpha_post <- (-1/(2*tau))*sum_for_post_alpha - (alpha^2)/(2*sigma_2_alpha)
-  return(alpha_post)
+  mu_post <- (sigma_2_alpha / (length(y_obs)*sigma_2_alpha + tau)) * sum(y_obs+beta*gamma^x_ages)
+  
+  sd_post <- (sigma_2_alpha*tau)/(length(y_obs)*sigma_2_alpha + tau)
+  
+  draw <- rnorm(1, mean = mu_post, sd = sqrt(sd_post))
+  if(draw < 1) draw <- 1
+  return(draw)
 }
 ```
 
@@ -230,19 +233,22 @@ $$
 \pi(\beta|\tau^{2}, \alpha, \gamma, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\beta) \propto \\
 \propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\beta) \propto \\
 \propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot exp\Big\{ -\frac{(\beta)^2}{2\sigma_{\beta}^{2}} \Big\} \propto \\
-\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{(\beta)^2}{2\sigma_{\beta}^{2}} \Big\}
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} -\frac{(\beta)^2}{2\sigma_{\beta}^{2}} \Big\} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n} \Big( y_{i}^{2} + \alpha^{2} + \beta^{2}\gamma^{2x_{i}} - 2y_{i}\alpha + 2y_{i}\beta\gamma^{x_{i}} -  2\alpha\beta\gamma^{x_{i}} \Big) -\frac{(\beta)^2}{2\sigma_{\beta}^{2}} \Big\} \propto \\
+\propto exp\Big\{ -\frac{1}{2} \Big( \frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}\Big)\beta^{2} + \Big( \frac{ \alpha\sum_{i=1}^{n}\gamma^{x_{i}} - \sum_{i=1}^{n}y_{i}\gamma^{x_{i}} }{\tau^{2}} \Big)\beta \Big\}
 $$
 
 ```{r include=FALSE}
 # unknown distro of beta
-notknown_fullcond_post_beta <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_beta){
-  # get the summatory of each yobs with each ui
-  sum_for_post_beta <- 0
-  for(i in 1:length(y_obs)) sum_for_post_beta <- sum_for_post_beta + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
-  
+fullcond_post_beta <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_beta){
   # update the theta hyperparameter(alpha or beta depends the formula is the same! changes sligthly)
-  beta_post <- (-1/(2*tau))*sum_for_post_beta - (beta^2)/(2*sigma_2_beta)
-  return(beta_post)
+  mu_post <- (sigma_2_beta/(sigma_2_beta*sum(gamma^(2*x_ages)+tau)))*sum((alpha-y_obs)*gamma^x_ages)
+  
+  sd_post <- (sigma_2_beta*tau)/(sigma_2_beta*sum(gamma^(2*x_ages)+tau))
+  
+  draw <- rnorm(1, mean = mu_post, sd = sqrt(sd_post))
+  if(draw < 1) draw <- 1
+  return(draw)
 }
 ```
 
@@ -251,8 +257,9 @@ for $\gamma$:
 $$
 \pi(\gamma|\tau^{2}, \alpha, \beta, y_{obs}) \propto \pi(y_{obs}|\alpha, \beta, \gamma, x_{i}, \tau^{2}) \pi(\gamma) \propto \\
 \propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\gamma) \propto \\
-\propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot \frac{1}{1-0} \propto \\
-\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\}
+\propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot \mathbb{I_{[0,1]}(\gamma)} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot \mathbb{I_{[0,1]}(\gamma)} \propto \\
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n} \Big( \beta^{2}\gamma^{2x_{i}} - 2\alpha\beta\gamma^{x_{i}} + 2y_{i}\beta\gamma^{x_{i}} \Big) \Big\}
 $$
 
 ```{r include=FALSE}
@@ -260,7 +267,7 @@ $$
 notknown_fullcond_post_gamma <- function(y_obs, alpha, beta, gamma, x_ages, tau){
   # get the summatory of each yobs with each ui
   sum_for_postgamma <- 0
-  for(i in 1:length(y_obs)) sum_for_postgamma <- sum_for_postgamma + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
+  for(i in 1:length(y_obs)) sum_for_postgamma <- sum_for_postgamma + ( (beta^2)*gamma^(2*x_ages[i]) - 2*alpha*beta*gamma^(x_ages[i]) + 2*y_obs[i]*beta*gamma^(x_ages[i]))
   
   # update the theta hyperparameter gamma
   gamma_post <- ((-1/(2*tau))*sum_for_postgamma)*1
@@ -276,13 +283,25 @@ $$~$$
 
 $$~$$
 
-As we can seen, in the previous section we derived the full-conditionals of the four hyper-parameters $\alpha, \beta, \gamma, \tau^{2}$. We recognized only the distribution of:
+As we can seen, in the previous section we derived the full-conditionals of the four hyper-parameters $\alpha, \beta, \gamma, \tau^{2}$. 
+
+We recognized that the distribution of $\tau^{2} \sim InvGamma\Big(a+\frac{n}{2}, \,\, b + \frac{\sum_{i=1}^{n}(y_{i}-(\alpha-\beta\gamma^{x_{i}}))^2}{2} \Big)$ and also the $\alpha \sim N\Big( \hat{\mu} = \frac{\frac{\sum_{i=1}^{n} y_{i} + \beta\sum_{i=1}^{n}\gamma^{x_{i}}}{\tau^{2}}}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} \Big) \, and \, \beta \sim N\Big( \hat{\mu} = \frac{\frac{ \alpha\sum_{i=1}^{n}\gamma^{x_{i}} - \sum_{i=1}^{n}y_{i}\gamma^{x_{i}} }{\tau^{2}}}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}}\Big)$ are known distributions (by the usual-fact that we can seen in the slide 95) only the $\gamma$ hyperparameter is the only one which we don't know the proper distribution.
+
+We can continue to formalize well the parameters that describing $\alpha \, \text{and} \, \beta$, for $\alpha$ we have:
 
 $$
-\tau^{2} \sim InvGamma\Big(a+\frac{n}{2}, b + \frac{\sum_{i=1}^{n}(y_{i}-(\alpha-\beta\gamma^{x_{i}}))^2}{2} \Big)
-$$ 
+\alpha \sim N\Big( \hat{\mu} = \frac{\frac{\sum_{i=1}^{n} y_{i} + \beta\sum_{i=1}^{n}\gamma^{x_{i}}}{\tau^{2}}}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} \Big) = N\Big(\hat{\mu} =  \frac{\sigma_{\alpha}^{2}}{n\sigma_{\alpha}^{2}+\tau^{2}}\sum_{i=1}^{n}y_{i}+\beta\gamma^{x_{i}}, \,\, \hat{\sigma^{2}} = \frac{\sigma_{\alpha}^{2}\tau^{2}}{n\sigma_{\alpha}^{2}+\tau^{2}} \Big)
+$$
 
-To be the one that is within the standard parametric families and its direct similation from full conditional is easily implemented.
+and for $\beta$ we have:
+
+$$
+\beta \sim N\Big( \hat{\mu} = \frac{\frac{ \alpha\sum_{i=1}^{n}\gamma^{x_{i}} - \sum_{i=1}^{n}y_{i}\gamma^{x_{i}} }{\tau^{2}}}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}}\Big) = N\Big( \hat{\mu} = \frac{\sigma_{\beta}^{2}}{\sigma_{\beta}^{2}\sum_{i=1}^{n}\gamma^{2x_{i}}+\tau^{2}}\sum_{i=1}^{n}\gamma^{x_{i}}(\alpha-y_{i}), \,\, \hat{\sigma^{2}} = \frac{\sigma_{\beta}^{2}\tau^{2}}{\sigma_{\beta}^{2}\sum_{i=1}^{n}\gamma^{2x_{i}}+\tau^{2}} \Big)
+$$
+
+So, we can directly simulate the full-conditional for $\alpha, \beta, \tau^{2}$.
+
+But, for $\gamma$ we must do a slightly different changment.
 
 $$~$$
 
@@ -290,17 +309,17 @@ $$~$$
 
 $$~$$
 
-In this step is important to use a way to reproduct the Hybrid-Kernels composed in this case as Metropolis-within-Gibbs. For this reason we simply have Gibbs samples through the know distribution of $\tau^{2}$ and after that we infer on the other three hyperparameters where their distribution is not known, but we can handle that *unormalized* full conditionals with the metropolis hastings.
+In this step, we use the Hybrid-Kernels technique composed in this case as Metropolis-within-Gibbs. For this reason, we simply have Gibbs samples through the known distribution of $\alpha, \beta, \tau^{2}$ and after that, we infer on the $\gamma$ hyperparameter where the distribution is not known. We can handle the *unormalized* full conditional with the Metropolis Hastings within the Gibbs samplig.
 
-The ***Gibbs Sampling*** is an algorithm for getting draws from a posterior when conditional posteriors are known, while we can use ***Metropolis-Hastings (MH)*** to sample from non-conjugate conditional posteriors within each blocked Gibbs iteration.
+The ***Gibbs Sampling*** is an algorithm for getting draws from a posterior distribution when the conditional posteriors are known, while we can use ***Metropolis-Hastings (MH)*** to sample from a non-conjugate conditional posterior within each Gibbs iteration.
 
-the conditional posterior of $\tau^{2}$ is conjugate. Inside each Gibbs iteration we can use a standard function to sample from the inverse gamma; we don't need other second sampling here. Instead, the other hyperparameters need to have a second sampler that is the ***MH***.
+the conditional posterior of $\alpha, \beta, \tau^{2}$ is conjugate. Inside each Gibbs iteration we can use a standard function to sample from their proper distributions; we don't need other second sampling here. Instead, for the $\gamma$ hyperparameter we need to have a second sampler that is the ***MH***.
 
 ### Metropolis-Hastings Algorithm
 
-The goal is to sample from each conditional posteriors. As we can seen below the MH sampler works in this way (for the explanation we define a general hyperparameter as $\theta$):
+The goal is to sample from each conditional posterior. As we can seen below, the MH sampler works in this way (for this explanation we define a general hyperparameter $\theta$):
 
-1. Define $\pi$ as to be the target density and produce a started candidate of $\theta^{(0)}$ to start the sampling. 
+1. Define $\pi$ as to be the target density and produce a started candidate of $\theta^{(0)}$ in order to start the sampling. 
 
 2. Let $p_{x}(y)$ to be a ***proposal distribution***, the value of x depends on the present value that has in the chain.
 
@@ -318,58 +337,10 @@ $$
 
 where $\alpha(x,y)$ = $min\Big\{\frac{\pi(y)p_{y}(x)}{\pi(x)p_{x}(y)},1 \Big\}$
 
-So, proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there.
+So, proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there, so:
 
 ```{r}
-# MH algorithm to sample from the full-cond of alpha
-notknown_fullcond_post_alpha_MH <- function(y_obs, currentstate, beta, gamma, x_ages, tau, sigma_2_a, a, greekpi, mhtrials){ # greekpi is the target distro
-  alpha_t <- currentstate # current state of theta in the chain
-  
-  for(i in 1:mhtrials){
-    # draw a candidate for the next/future state of the chain 
-    alpha_prop <- rnorm(n = 1, mean = alpha_t, sd = sqrt(sigma_2_a))
-    
-    # acceptance/rejection auxiliary draw
-    r_num <- greekpi(y_obs = y_obs, alpha = alpha_prop, beta = beta, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_alpha = sigma_2_a)
-    r_den <- greekpi(y_obs = y_obs, alpha = alpha_t, beta = beta, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_alpha = sigma_2_a)
-    
-    r <- exp(r_num-r_den)
-    rmin <- min(r, 1)
-    
-    # acc/rj method
-    omega = runif(1,min=0,max=1)
-    ACCEPT=(omega < rmin)
-    alpha_t <- ifelse(ACCEPT,alpha_prop, alpha_t)
-  }
-  
-  return(alpha_t)
-}
-
-# MH algorithm to sample from the full-cond of beta
-notknown_fullcond_post_beta_MH <- function(y_obs, alpha, currentstate, gamma, x_ages, tau, sigma_2_b, a, greekpi, mhtrials){ # greekpi is the target distro
-  beta_t <- currentstate # current state of theta in the chain
-  
-  for(i in 1:mhtrials){
-    # draw a candidate for the next/future state of the chain 
-    beta_prop <- rnorm(n = 1, mean = beta_t, sd = sqrt(sigma_2_b))
-    
-    # acceptance/rejection auxiliary draw
-    r_num <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta_prop, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_beta = sigma_2_b)
-    r_den <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta_t, gamma = gamma, x_ages = x_ages, tau = tau, sigma_2_beta = sigma_2_b)
-    
-    r <- exp(r_num-r_den)
-    rmin <- min(r, 1)
-    
-    # acc/rj method
-    omega = runif(1,min=0,max=1)
-    ACCEPT=(omega < rmin)
-    beta_t <- ifelse(ACCEPT,beta_prop, beta_t)
-  }
-  
-  return(beta_t)
-}
-
-# MH algorithm to sample from the full-cond of gamma
+# MH algorithm to sample from the notknown-full-cond of gamma
 notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_ages, tau, a, greekpi, mhtrials){ # greekpi is the target distro
   gamma_t <- currentstate # current state of theta in the chain
   
@@ -397,16 +368,16 @@ notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_
 niter <- 10000
 
 # set the prior parameters of tau and the the prior parameters for sigma(alpha and beta)
-a <- 20 
-b <- 1.5
-sigma_2_a <- 4
-sigma_2_b <- 6
+a <- 21 
+b <- 1.7
+sigma_2_a <- 6
+sigma_2_b <- 0.05
 
 # define the variables at every iteration t
 gibbs_samples <- data.frame(tau = rep(NA, niter), alpha = rep(NA, niter), beta = rep(NA, niter), gamma = rep(NA, niter))
 
 # initialize the state t = 0
-gibbs_samples[1, 1:4] <- c(0.003, 0, 0, 0) # tau, alpha = 3.05, beta = 7.24, gamma = 0.71 
+gibbs_samples[1, 1:4] <- c(0.03, 0, 0, 0) # tau is greater than zero, because is on the denominator 
 
 # save for each iteration the mean of the parameters ( useful for the point 1.h )
 mean_at_time_t <- list(mean_tau = rep(NA, niter), mean_alpha = rep(NA, niter), mean_beta = rep(NA, niter), mean_gamma = rep(NA, niter))
@@ -416,10 +387,9 @@ for(t in 1:niter){
   gibbs_samples[t+1, "tau"] <- fullcond_post_tau(y_obs, a, b, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_i)
   
   # define the random-walk MH for the other parameters alpha, beta and gamma
-  gibbs_samples[t+1, "alpha"] <- notknown_fullcond_post_alpha_MH(y_obs, currentstate = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_a, a = 1, greekpi = notknown_fullcond_post_alpha, mhtrials = 5)
-  
+  gibbs_samples[t+1, "alpha"] <- fullcond_post_alpha(y_obs = y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_alpha = sigma_2_a)
 
-  gibbs_samples[t+1, "beta"] <- notknown_fullcond_post_beta_MH(y_obs, alpha = gibbs_samples[t, "alpha"], currentstate = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_b, a = 1, greekpi = notknown_fullcond_post_beta, mhtrials = 5)
+  gibbs_samples[t+1, "beta"] <- fullcond_post_beta(y_obs = y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_beta = sigma_2_b)
   
 
   gibbs_samples[t+1, "gamma"] <- notknown_fullcond_post_gamma_MH(y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], currentstate = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], a = 1, greekpi = notknown_fullcond_post_gamma, mhtrials = 5)
@@ -432,6 +402,8 @@ for(t in 1:niter){
 }
 ```
 
+$$~$$
+
 After running the algorithm, let's go to see the traceplots of these hyperparameters
 
 $$~$$
@@ -443,17 +415,17 @@ $$~$$
 In this section we show the behaviours of these 4 hyperparameters in order to see interesting results:
 
 ```{r echo=FALSE, fig.align="center"}
-plot(gibbs_samples[, "tau"],type="b",xlab="t",ylab=expression(tau^2))
-title(main="Trace plot of the MC produced by means of MH with RW proposal")
+plot(gibbs_samples[, "tau"],type="l",xlab="t",ylab=expression(tau^2), col = randomcoloR::randomColor(), ylim = c(0, 0.35))
+title(main="Trace plot of the MC")
 grid()
-plot(gibbs_samples[, "alpha"],type="b",xlab="t",ylab=expression(alpha))
-title(main="Trace plot of the MC produced by means of MH with RW proposal")
+plot(gibbs_samples[, "alpha"],type="l",xlab="t",ylab=expression(alpha), col = randomcoloR::randomColor(), ylim = c(2.0, 3.2))
+title(main="Trace plot of the MC")
 grid()
-plot(gibbs_samples[, "beta"],type="b",xlab="t",ylab=expression(beta))
-title(main="Trace plot of the MC produced by means of MH with RW proposal")
+plot(gibbs_samples[, "beta"],type="l",xlab="t",ylab=expression(beta), col = randomcoloR::randomColor(), ylim = c(1, 1.3))
+title(main="Trace plot of the MC")
 grid()
-plot(gibbs_samples[, "gamma"],type="b",xlab="t",ylab=expression(gamma))
-title(main="Trace plot of the MC produced by means of MH with RW proposal")
+plot(gibbs_samples[, "gamma"],type="l",xlab="t",ylab=expression(gamma), col = randomcoloR::randomColor())
+title(main="Trace plot of the MC")
 grid()
 ```
 
@@ -467,7 +439,7 @@ $$~$$
 
 $$~$$
 
-In this section we want to see the empirical average of $\mathbf{\hat{I}}_{t}$ increasing the value of $t \, = \, 1,...,T$. Before to start we want to write the formula of $\mathbf{\hat{I}}_{t}$ that is:
+In this section we want to see the empirical average of $\mathbf{\hat{I}}_{t}$ increasing the value of $t \, = \, 1,...,T$. Before starting, we want to write the formula of $\mathbf{\hat{I}}_{t}$ that is:
 
 $$~$$
 
@@ -506,4 +478,222 @@ $$~$$
 
 $$~$$
 
+Here, there are the averages of the simulations of each parameter analyzed:
+
+$$~$$
+
+```{r echo=FALSE}
+cat(paste("the average of tau at t iterations is: ", round(tail(mean_at_time_t$mean_tau, n=1), 4), "\n", sep = "") )
+cat(paste("the average of alpha at t iterations is: ", round(tail(mean_at_time_t$mean_alpha, n=1), 4), "\n", sep = "") )
+cat(paste("the average of beta at t iterations is: ", round(tail(mean_at_time_t$mean_beta, n=1), 4), "\n", sep = "") )
+cat(paste("the average of gamma at t iterations is: ", round(tail(mean_at_time_t$mean_gamma, n=1), 4), "\n", sep = "") )
+```
+
+$$~$$
+
+We consider a particular tool to estimate the approximation error in order to taking into account positive and possible autocorrelations between the samples that we sampled before. 
+
+We can also visualize the different auto-correlation functions of each hyperparameter:
+
+```{r echo=FALSE, fig.align="center"}
+acf(gibbs_samples[, "tau"], main="ACF at different lags of the simulations", xlab="lag", ylab=expression(rho[tau]))
+grid()
+acf(gibbs_samples[, "alpha"], main="ACF at different lags of the simulations", xlab="lag", ylab=expression(rho[alpha]))
+grid()
+acf(gibbs_samples[, "beta"], main="ACF at different lags of the simulations", xlab="lag", ylab=expression(rho[beta]))
+grid()
+acf(gibbs_samples[, "gamma"], main="ACF at different lags of the simulations", xlab="lag", ylab=expression(rho[gamma]))
+grid()
+```
+
+The ACFs follow good behaviours, because we need to have sample independent each other during new iterations. Here, we see that the correlation that going further from the first lag, this is strictly decreasing and this is a good point!
+
+So, in this case we consider the Monte Carlo Standard Error (MCSE) that is an estimate of the inaccuracy of MC samples for the expectation of posterior samples.
+
+MCSE is the standard deviation around the posterior mean of these samples associated to their uncertainty during the use of the MCMC or MC algorithms. 
+
+$$~$$
+
+```{r echo=FALSE}
+cat(paste("the MCSE of tau at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"tau"]), 3), "\n", sep=""))
+cat(paste("the MCSE of alpha at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"alpha"]), 3), "\n", sep=""))
+cat(paste("the MCSE of beta at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"beta"]), 3), "\n", sep=""))
+cat(paste("the MCSE of gamma at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"gamma"]), 3), "\n", sep=""))
+```
+
+$$~$$
+
+these values are pretty interesting because our estimation errors are lower, so we can have maybe the good uncertainty that we are in the correct region where sampling the parameters.
+
+$$~$$
+
+# 1.l) Which parameter has the largest posterior uncertainty? How did you measure it?
+
+$$~$$
+
+In order to measure which is the posterior parameter with the largest posterior uncertainty, we use the formula of the variance in the case of MCMC and not in the case of MC, because the formula is sligthly different and because with the variance of MC we consider the samples as independent. 
+
+We emphasized the fact that the $\mathbf{E}[\mathbf{\hat{I}}_{t}] = \mathbf{E}_{\pi}[h(X)]$ but for the variance we have:
+
+$$
+\mathbf{V}[\hat{I}_{t}] = Var\Big[ \frac{1}{T} \sum_{i=1}^{T} h(X_{t}) \Big] = \frac{1}{T^{2}}\Big[\sum_{i=1}^{T}Var\Big[h(X_{t})\Big] + \sum_{i=1}^{T} \sum_{s \neq t} Cov\Big[h(X_{t}), h(X_{s})\Big]\Big]
+$$
+
+But, considering that the MC is stationary the covariance is the same whenever the lag is the same, we achieve to say that the variance is:
+
+$$
+\mathbf{V}[\hat{I}_{t}] = \frac{Var_{\pi}\Big[h(X_{1})\Big]}{T}\Big[ 1 + 2\sum_{k=1}^{T-1}(\frac{T-k}{T})\rho_{k}\Big]
+$$
+
+Considering the fact that:
+
+$$
+Var[\sqrt{T}\hat{I}_{t}] = T\sigma_{\hat{I}_{t}}^{2} \rightarrow \sigma^{2} \Big( 1 + 2\sum_{k=1}^{\infty} \rho_{k} \Big)
+$$
+
+The factor inside the parentheses is greater than 1. This is an inefficiency factor as long as $\rho_{k}$ prevails, so is used to compute the effective sample size ESS is:
+
+$$
+T_{eff} = \frac{T}{1+2\sum_{k=1}^{\infty}\rho_{k}}
+$$
+
+This advices to use the correct number of samples in order to achieve the stationary state, in fact we used it in the variance formula in this way:
+
+$$
+\mathbf{V}[\hat{I}_{t}] = \frac{Var_{\pi}[h(X_{1})]}{T_{eff}} = \Big( 1 + 2 \sum_{k=1}^{\infty} \rho_{k}\Big)\frac{\sigma^{2}}{T}
+$$
+
+Counting this last consideration, we are looking for each variance of each hyper parameter analyzed:
+
+$$~$$
+
+```{r echo=FALSE}
+cat(paste("the variance of tau at t iterations is: ", var(gibbs_samples[,"tau"])/LaplacesDemon::ESS(gibbs_samples[,"tau"]), "\n", sep=""))
+cat(paste("the variance of alpha at t iterations is: ", var(gibbs_samples[,"alpha"])/LaplacesDemon::ESS(gibbs_samples[,"alpha"]), "\n", sep=""))
+cat(paste("the variance of beta at t iterations is: ", var(gibbs_samples[,"beta"])/LaplacesDemon::ESS(gibbs_samples[,"beta"]), "\n", sep=""))
+cat(paste("the variance of gamma at t iterations is: ", var(gibbs_samples[,"gamma"])/LaplacesDemon::ESS(gibbs_samples[,"gamma"]), "\n", sep=""))
+```
+
+$$~$$
+
+the hyperparameter with the largest posterior uncertainty is $\alpha$
+
+$$~$$
+
+# 1.m) Which couple of parameters has the largest correlation (in absolute value)?
+
+$$~$$
+ 
+Representing the correlations of the values using the heatmap, we see:
+
+$$~$$
+
+```{r echo=FALSE, fig.align="center"}
+corrplot::corrplot(abs(cor(gibbs_samples)), method = "color", addCoef.col="grey", order = "AOE")
+```
+
+$$~$$
+
+The largest value of correlation is between $\gamma$ and $\alpha$.
+
+$$~$$
+
+# 1.n) Use the Markov chain to approximate the posterior predictive distribution of the length of a dugong with age of 20 years
+
+$$~$$
+
+Basically, when we want to fill in missing data, discover new data and something else  is important to do predictions about the future. In our case using MCMC is trivial to find the predictive distributions.
+
+Suppose to have a model $\pi(y_{pred}|\theta)$ and a fully known prior distribution. As we known, the Monte Carlo produces the posterior predictive distribution of a new (future) quantity as:
+
+$$
+\pi(y_{pred}) = \int \pi(y_{pred}|\theta)\pi(\theta)d\theta
+$$
+
+considering $y_{pred}$ within the model and considering it as an unknown quantity. This option could be included within the MCMC methods with a posterior distribution $\pi(\theta|y)$
+
+To approximate the posterior predictive distribution using MCMC we simply do this steps:
+
+1. Removes the burn-in period where the values are unstabilized
+2. Generates different means with the age of dugong equal to 20
+3. Generates the different observations
+4. Approximates the posterior predictive distribution and sees the Monte Carlo standard deviation as the best approximate standard deviation error
+
+$$~$$
+
+```{r echo=FALSE}
+# Removing the burn-in period of the first 500 samples
+burn_in <- 501
+
+tau_t <- gibbs_samples[burn_in:niter, "tau"]
+alpha_t <- gibbs_samples[burn_in:niter, "alpha"]
+beta_t <- gibbs_samples[burn_in:niter, "beta"]
+gamma_t <- gibbs_samples[burn_in:niter, "gamma"]
+
+# Generating the means with the dugong age equal to 20
+mu_posteriorpredictives <- alpha_t - beta_t*(gamma_t^20)
+
+# Generating the observations
+y_preds <- rnorm(n = niter - burn_in, mean = mu_posteriorpredictives, sd = tau_t)
+
+# Showing the expectation of the observations
+cat(paste("The approximation of the posterior predictive distribution is: ", round(mean(y_preds), 3), "\n", sep = ""))
+cat(paste("The MCSE of the posterior predictive distribution is: ", round(LaplacesDemon::MCSE(y_preds), 3), "\n", sep = ""))
+```
+
+```{r warning=FALSE, echo=FALSE, fig.align="center"}
+hist(y_preds, col = randomcoloR::randomColor(), main = "Predictive observations based of having 20 years old Dugongs", xlim = c(2.2, 3.0), breaks=100)
+grid()
+rug(y_preds)
+```
+
+$$~$$
+
+# 1.o) Provide the prediction of a different dugong with age 30
+
+$$~$$
+
+Considering the same steps followed in the previous section, we have:
+
+$$~$$
+
+```{r echo=FALSE}
+# Removing the burn-in period of the first 500 samples
+burn_in <- 501
+
+tau_t <- gibbs_samples[burn_in:niter, "tau"]
+alpha_t <- gibbs_samples[burn_in:niter, "alpha"]
+beta_t <- gibbs_samples[burn_in:niter, "beta"]
+gamma_t <- gibbs_samples[burn_in:niter, "gamma"]
+
+# Generating the means with the dugong age equal to 30
+mu_posteriorpredictives <- alpha_t - beta_t*(gamma_t^30)
+
+# Generating the observations
+y_preds <- rnorm(n = niter - burn_in, mean = mu_posteriorpredictives, sd = tau_t)
+
+# Showing the expectation of the observations
+cat(paste("The approximation of the posterior predictive distribution is: ", round(mean(y_preds), 3), "\n", sep = ""))
+cat(paste("The MCSE of the posterior predictive distribution is: ", round(LaplacesDemon::MCSE(y_preds), 3), "\n", sep = ""))
+```
+
+```{r warning=FALSE, echo=FALSE, fig.align="center"}
+hist(y_preds, col = randomcoloR::randomColor(), main = "Predictive observations based of having 30 years old Dugongs", xlim = c(2.2, 3.0), breaks=100)
+grid()
+rug(y_preds)
+```
+
+$$~$$
+
+# 1.p) Which prediction is less precise?
+
+$$~$$
+
+The second prediction gives less precision than the previous. Due, to the approximation errors (MCSE) of the corresponding cases.
+
+$$~$$
+
+# Test Part 2
+
+$$~$$
 
