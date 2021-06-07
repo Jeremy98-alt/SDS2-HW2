@@ -339,6 +339,8 @@ where $\alpha(x,y)$ = $min\Big\{\frac{\pi(y)p_{y}(x)}{\pi(x)p_{x}(y)},1 \Big\}$
 
 So, proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there, so:
 
+$$~$$
+
 ```{r}
 # MH algorithm to sample from the notknown-full-cond of gamma
 notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_ages, tau, a, greekpi, mhtrials){ # greekpi is the target distro
@@ -490,10 +492,10 @@ Here, there are the averages of the simulations of each parameter analyzed:
 $$~$$
 
 ```{r echo=FALSE}
-cat(paste("the average of tau at t iterations is: ", round(tail(mean_at_time_t$mean_tau, n=1), 4), "\n", sep = "") )
-cat(paste("the average of alpha at t iterations is: ", round(tail(mean_at_time_t$mean_alpha, n=1), 4), "\n", sep = "") )
-cat(paste("the average of beta at t iterations is: ", round(tail(mean_at_time_t$mean_beta, n=1), 4), "\n", sep = "") )
-cat(paste("the average of gamma at t iterations is: ", round(tail(mean_at_time_t$mean_gamma, n=1), 4), "\n", sep = "") )
+cat(paste("the average of tau at t iterations is: ", tail(mean_at_time_t$mean_tau, n=1), "\n", sep = "") )
+cat(paste("the average of alpha at t iterations is: ", tail(mean_at_time_t$mean_alpha, n=1), "\n", sep = "") )
+cat(paste("the average of beta at t iterations is: ", tail(mean_at_time_t$mean_beta, n=1), "\n", sep = "") )
+cat(paste("the average of gamma at t iterations is: ", tail(mean_at_time_t$mean_gamma, n=1), "\n", sep = "") )
 ```
 
 $$~$$
@@ -513,7 +515,7 @@ acf(gibbs_samples[, "gamma"], main="ACF at different lags of the simulations", x
 grid()
 ```
 
-The ACFs follow good behaviours, because we need to have sample independent each other during new iterations. Here, we see that the correlation that going further from the first lag, this is strictly decreasing and this is a good point!
+The ACFs follow good behaviours, because we need to have samples independent each other during new iterations. Here, we see that the correlation that going further from the first lag, this is strictly decreasing and this is a good point!
 
 So, in this case we consider the Monte Carlo Standard Error (MCSE) that is an estimate of the inaccuracy of MC samples for the expectation of posterior samples.
 
@@ -601,7 +603,7 @@ corrplot::corrplot(abs(cor(gibbs_samples)), method = "color", addCoef.col="grey"
 
 $$~$$
 
-The largest value of correlation is between $\gamma$ and $\alpha$.
+The largest value of correlation is between $\alpha$ and $\gamma$.
 
 $$~$$
 
@@ -645,7 +647,7 @@ y_preds <- rnorm(n = niter - burn_in, mean = mu_posteriorpredictives, sd = tau_t
 
 # Showing the expectation of the observations
 cat(paste("The approximation of the posterior predictive distribution is: ", round(mean(y_preds), 3), "\n", sep = ""))
-cat(paste("The MCSE of the posterior predictive distribution is: ", round(LaplacesDemon::MCSE(y_preds), 3), "\n", sep = ""))
+cat(paste("The MCSE of the posterior predictive distribution is: ", LaplacesDemon::MCSE(y_preds), "\n", sep = ""))
 ```
 
 ```{r warning=FALSE, echo=FALSE, fig.align="center"}
@@ -681,7 +683,7 @@ y_preds <- rnorm(n = niter - burn_in, mean = mu_posteriorpredictives, sd = tau_t
 
 # Showing the expectation of the observations
 cat(paste("The approximation of the posterior predictive distribution is: ", round(mean(y_preds), 3), "\n", sep = ""))
-cat(paste("The MCSE of the posterior predictive distribution is: ", round(LaplacesDemon::MCSE(y_preds), 3), "\n", sep = ""))
+cat(paste("The MCSE of the posterior predictive distribution is: ", LaplacesDemon::MCSE(y_preds), "\n", sep = ""))
 ```
 
 ```{r warning=FALSE, echo=FALSE, fig.align="center"}
@@ -723,6 +725,11 @@ tpm <- matrix( c(0, 1/2, 1/2,
 ```
 
 <!-- insert the igraph plot (?) -->
+```{r warning=FALSE, echo=FALSE}
+tpm_graph <- igraph::graph_from_adjacency_matrix(tpm, weighted = TRUE)
+plot(tpm_graph, edge.label = round(E(tpm_graph)$weight, 3), layout = layout.auto, cex=0.8, main="Markov Chain", vertex.size=25, edge.curverd=.1, arrow.size=.2, arrow.width=.1, edge.arrow.size=.8, vertex.label.cex=.9, vertex.color = "green")
+```
+
 
 $$~$$
 
@@ -761,7 +768,7 @@ $$~$$
 
 $$~$$
 
-As mentioned in this section, we put above the relative frenquencies:
+As mentioned in this section, we put below the relative frenquencies:
 
 $$~$$
 
@@ -780,10 +787,7 @@ As shown in the title, we consider to simulate 500 times 1000 simulations of the
 $$~$$
 
 ```{r}
-markovchainsampling <- function(tpm, niter = 1000){
-  # defining the number of iterations and the starting point
-  current_state <- 1 
-  
+markovchainsampling <- function(current_state, tpm, niter = 1000){
   # allocates the array where stores the simulations
   nsim <- rep(NA, niter+1)
   
@@ -805,7 +809,7 @@ final_state <- rep(NA, nchains)
 final_relative_frequencies <- matrix(NA, ncol=niter+1, nrow=500)
 
 for(xT in 1:nchains){
-  out <- markovchainsampling(tpm = tpm)
+  out <- markovchainsampling(current_state = 1, tpm = tpm)
   
   final_state[xT] <- out$endstate
   final_relative_frequencies[xT, ] <- out$relativefrequencies
@@ -826,7 +830,7 @@ prop.table(table(final_state))
 
 $$~$$
 
-As we can see above, the behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain, we are going to focus on the steady state (also known as stationary state), we want to reach in a better into the stationary state.
+As we can see above, the behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain, we are going to focus on the steady state (also known as stationary state), in order to be able of making different sampling in that region that more likely is the best way to approximate the posterior region.
 
 Now, we want to highlight the empirical mean of these simulations based on iteration of 500 times of our markov chain for each state:
 
@@ -850,27 +854,171 @@ cat(paste("The mean relative frequency for the state 3 is exactly: ", mean(dt_fn
 
 $$~$$
 
-The stationary distribution is supported by the definition of the ***invariant distribution*** in the discrete case, we highligthed the fact the:
-
-- Given the transiction probability P
-- Given the target distribution $\pi$ where a state $X_{0} \sim \pi$ belongs to
-
-the invariant distribution is defined as: $\pi^{T} \cdot P = \pi \Leftrightarrow P^{T} \cdot \pi - I \cdot \pi = 0$. Multiplying the j-th column of the P with $\pi$, we have $\sum_{r=1}^{d}P_{r_{j}} \cdot \pi_{j} = \pi_{j} \,\,\,\, \forall j = {1, ..., d}$ this will bring you to be in an equilibrium condition.
+The stationary distribution is supported by the definition of the ***invariant distribution*** in the discrete case, we will see in the next section the definition of it in order to calculate this distribution.
 
 $$~$$
 
 ## 2.d) compute the theoretical stationary distribution and explain how you have obtained it
 
 $$~$$
+Considering the Transiction probability matrix (TPM) mentioned before:
+
+$$
+TPM = P =
+\begin{bmatrix}
+    \pi_{11} & \pi_{12} & \pi_{13} \\
+    \pi_{21} & \pi_{22} & \pi_{23} \\
+    \pi_{31} & \pi_{32} & \pi_{33}
+\end{bmatrix}
+=
+\begin{bmatrix}
+    0 & \frac{1}{2} & \frac{1}{2} \\
+    \frac{5}{8} & \frac{1}{8} & \frac{1}{4} \\
+    \frac{2}{3} & \frac{1}{3} & 0
+\end{bmatrix}
+$$
+
+this matrix allows us to understand with how much probability I'm going to move from a state to another state, for example there is the probability of $\frac{1}{2}$ to go from the state $\pi_1$ to $\pi_2$ and so on.
+
+The question of the steady state is: *"is there a vector of storing these probabilities?"*
+The vector is called tradionally as vector of probabilities $\pi = [\pi_1, \pi_2, \pi_3]$, this vecto takes into account the probability of each state.
+
+The $\sum_{j=1}^{d} \pi_j = 1 \, \wedge \forall \pi_j \geqslant 0$, so if I have $\pi_1 = 0.5, \pi_2 = 0.5 \,\text{and}\, \pi_3 = 0$ means that I'm in the state $\pi_1$ or $\pi_2$ with that corresponding probabilities.
+
+From the fact that, considering the transiction probability matrix I'm aware to know in a future where I could be through different iterations of the markov chain. 
+
+My goal is to maintain steady the same vector of probabilities, in order to have the distribution forever over many times.
+
+But, directly we can calculate this vector of probabilities using the transiction probability matrix as follows:
+
+\begin{equation}
+  \pi^T P = \pi^T \Leftrightarrow \pi P = \pi \\
+  \begin{bmatrix}
+      \pi_1 & \pi_2 & \pi_3 \\
+  \end{bmatrix}
+  
+  \begin{bmatrix}
+      0 & \frac{1}{2} & \frac{1}{2} \\
+      \frac{5}{8} & \frac{1}{8} & \frac{1}{4} \\
+      \frac{2}{3} & \frac{1}{3} & 0
+  \end{bmatrix} =
+  
+  \begin{bmatrix}
+      \pi_1 \\
+      \pi_2 \\
+      \pi_3
+  \end{bmatrix}
+\end{equation}
+
+that can be also written as follows:
+
+$$
+(P^T-I)\pi = 0
+$$
+
+We have in the left side an invisible coefficient that we named as $\lambda = 1$ that is used in the general equation be the ***eigenvalue*** of the matrix, when it exists.
+
+$$
+(P^T-\lambda I)\pi = 0
+$$
+
+the $\pi = [\pi, ...., \pi_d]$ is also the ***eigenvector*** associated with $\lambda$. Reporting the previous concepts is important to have this condition of: $\sum_{j=1}^{d} \pi_j = 1 \, \wedge \forall \pi_j \geqslant 0$ to have the existence of the stationary distribution.
+
+In the discrete case the steady state is easily computed as the probability of being in the state j after a single step, such as:
+
+$$
+\sum_{r=1}^{d}P_{rj}\pi_r = \pi_j
+$$
+
+Given the fact that the the vector of $[P_{1j}, ...., P_{rj}, ..., P_{dj}]$ is the vector of probabilities of being in j starting from all possible initial states.
+
+So, reporting the whole results we need to:
+
+1. Find the eigenvector with the eigenvalue equal to 1
+2. Checks, if the eigenvector values are positives
+3. Then, I check if the $\pi$ is on the stationary distribution of the Markov chain transition probability matrix
+
+$$~$$
+
+### Step 1
+
+$$~$$
+
+```{r}
+vector_pi <- eigen(t(tpm))$vector[,1]/sum(eigen(t(tpm))$vector[,1])
+vector_pi
+```
+
+$$~$$
+
+### Step 2
+
+$$~$$
+
+```{r}
+eigen(t(tpm))$vector[,1]
+```
+
+
+$$~$$
+
+### Step 3
+
+$$~$$
+```{r}
+t(tpm)%*%vector_pi
+```
+
+$$~$$
+Is important to answer to this other question, interisting to know: *"the steady state could have 1 or more distributions?"* 
+
+The answer is that there is the possibility to have different stationary distributions. Considering the fact that, we maybe could have different loops like this:
+
+```{r echo=FALSE}
+tpm2 <- matrix( c(0, 1/2, 1/2, 0,
+                 0, 0, 1, 1,
+                 0, 1, 0, 0,
+                 0, 0, 0, 1), 
+               nrow=4, byrow=T)
+tpm_graph <- igraph::graph_from_adjacency_matrix(tpm2, weighted = TRUE)
+plot(tpm_graph, edge.label = round(E(tpm_graph)$weight, 3), layout = layout.auto, cex=0.8, main="Markov Chain with more than one stationarity", vertex.size=25, edge.curverd=.1, arrow.size=.2, arrow.width=.1, edge.arrow.size=.8, vertex.label.cex=.9, vertex.color = "green")
+```
+
+$$~$$
+
+The steady state *doesn't* tell us what happens to the markov chain as it progresses further and further in the future, this simple answers to the fact that if I start with markov chain with a particular distribution, this will be state there over times. 
 
 $$~$$
 
 ## 2.e) is it well approximated by the simulated empirical relative frequencies computed in (b) and (c)?
 
 $$~$$
+As we shown above, the theoretical steady state for $\pi$ is pretty similar to the points b and c that we calculated previously:
+
+```{r echo=FALSE}
+vector_pi
+```
 
 $$~$$
 
 ## 2.f) what happens if we start at t = 0 from state X_0 = 2 instead of X_0 = 1?
 
 $$~$$
+
+The main behaviour of the markov chain will never chain due to the fact that the given distribution and the end and in the future will be steady to these values in fact:
+
+$$~$$
+
+```{r echo=FALSE}
+niter <- 1000
+relative_frequencies <- matrix(NA, ncol=niter+1, nrow=1)
+
+out <- markovchainsampling(current_state = 2, tpm = tpm)
+relative_frequencies[1, ] <- out$relativefrequencies
+
+prop.table(table(relative_frequencies))
+```
+
+$$~$$
+
+The results are similar!
