@@ -134,10 +134,12 @@ $$~$$
 
 $$~$$
 
-After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper-values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. Given the fact that $\mu_{i}$ is described as a non-linear model, we need to choose suitable hyperparameters for $\alpha \, \text{and} \, \beta$, so the first hyperparameter needs to choose the variance denoted as $\sigma_{\alpha}^{2}$ by simulations:
+After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. 
+
+Given that $\mu_{i}$ is described as a hyper parameter of the non-linear model, we need to choose $\alpha \, \text{and} \, \beta$, so the first hyperparameter to choose for generating different values of $\alpha$ is the variance denoted as $\sigma_{\alpha}^{2}$ by simulations:
 
 ```{r echo=FALSE, fig.align="center", warning=FALSE}
-# Fitting the model using the function fit
+# Fitting the model using the function fit, is for the linear model
 fitted <- lm(Length = x_i, data = dugongdat)
 
 sig_alph <- c(6, 1, 7, 8, 10, 20)
@@ -150,7 +152,7 @@ abline(v = coefficients(fitted)[1], lwd = 2, lty = 2, col = "purple")
 grid()
 ```
 
-In this case, we want to assign for $\sigma_{\alpha}^{2}$ the value of 6, that shows a lower uncertainty than others, the higher value of probability of the red curve is near to the optimal dashed purple line found. This contains the intercept of the regression.
+In this case, we want to assign for $\sigma_{\alpha}^{2}$ the value of 6, that shows a lower uncertainty than others, the higher value of probability of the red curve is near to the optimal dashed purple line found. This contains the intercept of the regression, in this case represents the intercept of the linear regression model, but doesn't matter we want to find a suitable parameters of our prior belief that will be adjust following our future steps of the MCMC sampling.
 
 Instead, for $\sigma_{\beta}^{2}$ we find by simulations:
 
@@ -167,7 +169,7 @@ grid()
 
 In this case, the value of sigma beta is 0.05, as we can seen above this gives the best fitting.
 
-Instead, for $\gamma$ we have the same prior parameters of the uniform distribution, the range is within 0 and 1.
+Instead, for $\gamma$ we have the parameters a = 0 and b = 1.
 
 $$~$$
 
@@ -190,13 +192,13 @@ $$
 ```{r include=FALSE}
 # full-conditional with known distro of tau
 fullcond_post_tau <- function(y_obs, a, b, alpha, beta, gamma, x_ages){
-  shape_post <- a+length(y_obs)/2
+  shape_post <- a+length(y_obs)/2 # a + n/2
   
   rate_post <- 0
   for(i in 1:length(y_obs)) rate_post <- rate_post + (y_obs[i]-(alpha-beta*(gamma^x_ages[i])))^2
   rate_post <- b + rate_post/2
   
-  draw <- invgamma::rinvgamma(n = 1, shape = shape_post, rate = rate_post)
+  draw <- invgamma::rinvgamma(n = 1, shape = shape_post, rate = rate_post) # posterior distro
   return(draw)
 }
 ```
@@ -214,15 +216,14 @@ $$
 $$
 
 ```{r include=FALSE}
-# unknown distro of alpha
+# known distro of alpha
 fullcond_post_alpha <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_alpha){
-  # update the theta hyperparameter(alpha or beta depends the formula is the same! changes sligthly)
   mu_post <- (sigma_2_alpha / (length(y_obs)*sigma_2_alpha + tau)) * sum(y_obs+beta*gamma^x_ages)
   
   sd_post <- (sigma_2_alpha*tau)/(length(y_obs)*sigma_2_alpha + tau)
   
   draw <- rnorm(1, mean = mu_post, sd = sqrt(sd_post))
-  if(draw < 1) draw <- 1
+  if(draw < 1) draw <- 1 # truncating the negative values, shifting to the positive that starts from 1 to infinity as mentioned in the homework
   return(draw)
 }
 ```
@@ -247,7 +248,7 @@ fullcond_post_beta <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_b
   sd_post <- (sigma_2_beta*tau)/(sigma_2_beta*sum(gamma^(2*x_ages)+tau))
   
   draw <- rnorm(1, mean = mu_post, sd = sqrt(sd_post))
-  if(draw < 1) draw <- 1
+  if(draw < 1) draw <- 1 # truncating the negative values, shifting to the positive that starts from 1 to infinity as mentioned in the homework
   return(draw)
 }
 ```
@@ -311,7 +312,7 @@ $$~$$
 
 In this step, we use the Hybrid-Kernels technique composed in this case as Metropolis-within-Gibbs. For this reason, we simply have Gibbs samples through the known distribution of $\alpha, \beta, \tau^{2}$ and after that, we infer on the $\gamma$ hyperparameter where the distribution is not known. We can handle the *unormalized* full conditional with the Metropolis Hastings within the Gibbs samplig.
 
-The ***Gibbs Sampling*** is an algorithm for getting draws from a posterior distribution when the conditional posteriors are known, while we can use ***Metropolis-Hastings (MH)*** to sample from a non-conjugate conditional posterior within each Gibbs iteration.
+The ***Gibbs Sampling*** is an algorithm for getting draws from a posterior distribution when the conditional posteriors are known and symmetric, while we can use ***Metropolis-Hastings (MH)*** to sample from a non-conjugate conditional posterior within each Gibbs iteration.
 
 the conditional posterior of $\alpha, \beta, \tau^{2}$ is conjugate. Inside each Gibbs iteration we can use a standard function to sample from their proper distributions; we don't need other second sampling here. Instead, for the $\gamma$ hyperparameter we need to have a second sampler that is the ***MH***.
 
@@ -724,9 +725,12 @@ tpm <- matrix( c(0, 1/2, 1/2,
                nrow=3, byrow=T)
 ```
 
-<!-- insert the igraph plot (?) -->
-```{r warning=FALSE, echo=FALSE}
-tpm_graph <- igraph::graph_from_adjacency_matrix(tpm, weighted = TRUE)
+```{r include=FALSE}
+library(igraph)
+```
+
+```{r warning=FALSE, echo=FALSE, fig.align="center"}
+tpm_graph <- graph_from_adjacency_matrix(tpm, weighted = TRUE)
 plot(tpm_graph, edge.label = round(E(tpm_graph)$weight, 3), layout = layout.auto, cex=0.8, main="Markov Chain", vertex.size=25, edge.curverd=.1, arrow.size=.2, arrow.width=.1, edge.arrow.size=.8, vertex.label.cex=.9, vertex.color = "green")
 ```
 
@@ -782,7 +786,7 @@ $$~$$
 
 $$~$$
 
-As shown in the title, we consider to simulate 500 times 1000 simulations of the Markov Chain:
+As shown in the title, we consider to simulate 500 times 1000 simulations of the Markov Chain, saving at each iteration also the relative frequency to do other types of inferences on them!, So:
 
 $$~$$
 
@@ -819,7 +823,7 @@ for(xT in 1:nchains){
 
 $$~$$
 
-We can show some simple plots and summaries of this previous step:
+Finding some interesting new values for each chain simulated, we can show some simple plots and the relative summaries of this previous step:
 
 $$~$$
 
@@ -830,9 +834,9 @@ prop.table(table(final_state))
 
 $$~$$
 
-As we can see above, the behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain, we are going to focus on the steady state (also known as stationary state), in order to be able of making different sampling in that region that more likely is the best way to approximate the posterior region.
+As we can see above, these are the relative frequency of the 500 simulated chains. The behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain. In this case, we are going to focus on the steady state (also known as ***stationary state***). Here we are able of making different samplings in that region that more likely is the best way to approximate the posterior region.
 
-Now, we want to highlight the empirical mean of these simulations based on iteration of 500 times of our markov chain for each state:
+Now, we want to make some inference on the relative frequencies captured at each iteration of the final state of the markov chain, so:
 
 $$~$$
 
@@ -861,14 +865,14 @@ $$~$$
 ## 2.d) compute the theoretical stationary distribution and explain how you have obtained it
 
 $$~$$
-Considering the Transiction probability matrix (TPM) mentioned before:
+Considering the Transiction probability matrix (TPM) with three states mentioned before:
 
 $$
 TPM = P =
 \begin{bmatrix}
-    \pi_{11} & \pi_{12} & \pi_{13} \\
-    \pi_{21} & \pi_{22} & \pi_{23} \\
-    \pi_{31} & \pi_{32} & \pi_{33}
+    p_{11} & p_{12} & p_{13} \\
+    p_{21} & p_{22} & p_{23} \\
+    p_{31} & p_{32} & p_{33}
 \end{bmatrix}
 =
 \begin{bmatrix}
@@ -878,10 +882,10 @@ TPM = P =
 \end{bmatrix}
 $$
 
-this matrix allows us to understand with how much probability I'm going to move from a state to another state, for example there is the probability of $\frac{1}{2}$ to go from the state $\pi_1$ to $\pi_2$ and so on.
+this matrix allows us to understand with how much probability I'm going to move from a state to another state, for example there is the probability of $\frac{1}{2}$ to go from the state 1 to 2 and so on.
 
 The question of the steady state is: *"is there a vector of storing these probabilities?"*
-The vector is called tradionally as vector of probabilities $\pi = [\pi_1, \pi_2, \pi_3]$, this vecto takes into account the probability of each state.
+The vector is called tradionally as vector of probabilities $\pi = [\pi_1, \pi_2, \pi_3]$, this vector takes into account the probability of each state.
 
 The $\sum_{j=1}^{d} \pi_j = 1 \, \wedge \forall \pi_j \geqslant 0$, so if I have $\pi_1 = 0.5, \pi_2 = 0.5 \,\text{and}\, \pi_3 = 0$ means that I'm in the state $\pi_1$ or $\pi_2$ with that corresponding probabilities.
 
@@ -889,7 +893,15 @@ From the fact that, considering the transiction probability matrix I'm aware to 
 
 My goal is to maintain steady the same vector of probabilities, in order to have the distribution forever over many times.
 
-But, directly we can calculate this vector of probabilities using the transiction probability matrix as follows:
+The stationary distribution $\pi = [\pi_1, \pi_2, \pi_3]^{T}$ must statisfy the equations:
+
+\begin{cases}
+  \pi_1p_{11} + \pi_2p_{21} + \pi_3p_{31} = \pi_1 \\
+  \pi_1p_{12} + \pi_2p_{22} + \pi_3p_{32} = \pi_2 \\
+  \pi_1p_{13} + \pi_2p_{23} + \pi_3p_{33} = \pi_3
+\end{cases}
+
+But, directly we can calculate and re-written this vector of probabilities using the transiction probability matrix as follows:
 
 \begin{equation}
   \pi^T P = \pi^T \Leftrightarrow \pi P = \pi \\
@@ -916,21 +928,13 @@ $$
 (P^T-I)\pi = 0
 $$
 
-We have in the left side an invisible coefficient that we named as $\lambda = 1$ that is used in the general equation be the ***eigenvalue*** of the matrix, when it exists.
+We have in the left side an invisible coefficient that we named as $\lambda = 1$ that is used in the general equation be the ***eigenvalue*** of the matrix, when it exists. Since $\pi$ must be one of the possible solutions of the following system of equations:
 
 $$
 (P^T-\lambda I)\pi = 0
 $$
 
-the $\pi = [\pi, ...., \pi_d]$ is also the ***eigenvector*** associated with $\lambda$. Reporting the previous concepts is important to have this condition of: $\sum_{j=1}^{d} \pi_j = 1 \, \wedge \forall \pi_j \geqslant 0$ to have the existence of the stationary distribution.
-
-In the discrete case the steady state is easily computed as the probability of being in the state j after a single step, such as:
-
-$$
-\sum_{r=1}^{d}P_{rj}\pi_r = \pi_j
-$$
-
-Given the fact that the the vector of $[P_{1j}, ...., P_{rj}, ..., P_{dj}]$ is the vector of probabilities of being in j starting from all possible initial states.
+the $\pi = [\pi, ...., \pi_d]$ is also the ***eigenvector*** associated with $\lambda$. Reporting the previous concepts is important to have this condition of: $\sum_{j=1}^{d} \pi_j = 1 \, \wedge \forall \pi_j \geqslant 0$ to have the existence of the stationary distribution and we are interested to find this solution.
 
 So, reporting the whole results we need to:
 
@@ -944,10 +948,16 @@ $$~$$
 
 $$~$$
 
+We must renormalize the eigenvector corresponding to the eigenvalue equal to 1 as follows:
+
+$$~$$
+
 ```{r}
 vector_pi <- eigen(t(tpm))$vector[,1]/sum(eigen(t(tpm))$vector[,1])
 vector_pi
 ```
+
+As we can seen above, we mentioned the vector_pi that is the $\pi$ solution that satisfies the stationarity equations for our Markov chain with transition probability matrix P
 
 $$~$$
 
@@ -974,13 +984,13 @@ Is important to answer to this other question, interisting to know: *"the steady
 
 The answer is that there is the possibility to have different stationary distributions. Considering the fact that, we maybe could have different loops like this:
 
-```{r echo=FALSE}
+```{r echo=FALSE, fig.align="center"}
 tpm2 <- matrix( c(0, 1/2, 1/2, 0,
                  0, 0, 1, 1,
                  0, 1, 0, 0,
                  0, 0, 0, 1), 
                nrow=4, byrow=T)
-tpm_graph <- igraph::graph_from_adjacency_matrix(tpm2, weighted = TRUE)
+tpm_graph <- graph_from_adjacency_matrix(tpm2, weighted = TRUE)
 plot(tpm_graph, edge.label = round(E(tpm_graph)$weight, 3), layout = layout.auto, cex=0.8, main="Markov Chain with more than one stationarity", vertex.size=25, edge.curverd=.1, arrow.size=.2, arrow.width=.1, edge.arrow.size=.8, vertex.label.cex=.9, vertex.color = "green")
 ```
 
