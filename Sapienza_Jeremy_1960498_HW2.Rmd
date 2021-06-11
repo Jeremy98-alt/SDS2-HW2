@@ -94,11 +94,10 @@ We need to write the joint prior distribution at stake, considering the $\alpha,
 
 $$
 \pi(\alpha, \beta, \gamma, \tau^{2}) = f_{Normal(0, \sigma_{\alpha}^{2})}(\alpha) \cdot f_{Normal(0, \sigma_{\beta}^{2})}(\beta) \cdot f_{Unif(0, 1)}(\gamma) \cdot f_{InvGamma(a, b)}(\tau^{2}) \propto \\
-\propto exp\Big\{ -\frac{\alpha^{2}}{2\sigma_{\alpha}^{2}} \Big\} \cdot exp\Big\{ -\frac{\beta^{2}}{2\sigma_{\beta}^{2}} \Big\} \cdot \frac{exp\Big\{ -\frac{b}{\tau^{2}} \Big\}}{\tau^{2(a+1)}} \cdot \mathbf{I}_{[0, 1]}(\gamma)
+\propto exp\Big\{ -\frac{\alpha^{2}}{2\sigma_{\alpha}^{2}} \Big\} \cdot \mathbb{I_{(1,\infty)}(\alpha)} \cdot exp\Big\{ -\frac{\beta^{2}}{2\sigma_{\beta}^{2}} \Big\} \cdot \mathbb{I_{(1,\infty)}}(\beta) \cdot \frac{exp\Big\{ -\frac{b}{\tau^{2}} \Big\}}{\tau^{2(a+1)}} \cdot \mathbb{I_{(0,\infty)}}(\tau^2) \cdot \frac{1}{1-0} \cdot \mathbf{I}_{[0, 1]}(\gamma)
 $$
-<!--you need to put the indicator functions in the latex formulaa-->
 
-In this step, I choose suitable hyperparameters for this statistical model, in order to fit well with our main features recognized before.
+In this step, I choose suitable hyperparameters for this statistical model, in order to fit well the main features recognized before.
 
 $$~$$
 
@@ -136,10 +135,10 @@ $$~$$
 
 After deciding the $\tau^{2}$ hyperparameter is important to decide which hyper values attribute for the mean of the statistical model, is important to remind that the mean is described as $\mu_{i} = f(x_{i}) = \alpha - \beta\gamma^{x_{i}}$. 
 
-Given that $\mu_{i}$ is described as a hyper parameter of the non-linear model, we need to choose $\alpha \, \text{and} \, \beta$, so the first hyperparameter to choose for generating different values of $\alpha$ is the variance denoted as $\sigma_{\alpha}^{2}$ by simulations:
+Given that $\mu_{i}$ is described as a hyper parameter of the non-linear model, we need to choose $\alpha \, \text{and} \, \beta$, so the first hyperparameter to choose for generating different values of $\alpha$ is the variance denoted as $\sigma_{\alpha}^{2}$, by simulations we have:
 
 ```{r echo=FALSE, fig.align="center", warning=FALSE}
-# Fitting the model using the function fit, is for the linear model
+# Fitting the model using the function fit, is for the linear model but we want to choose a particular value to inspire and find our typical good "theoretical" parameters
 fitted <- lm(Length = x_i, data = dugongdat)
 
 sig_alph <- c(6, 1, 7, 8, 10, 20)
@@ -177,7 +176,7 @@ $$~$$
 
 $$~$$
 
-To derive the full-conditionals is important to specify, how much is needed in our case. The number of full-conditionals required in this case is 4, considering our hyperparameters: $\alpha, \beta, \gamma, \tau^{2}$.
+To derive the full-conditionals is important to specify, the number of full-conditionals required. In this case is 4, considering our hyperparameters: $\alpha, \beta, \gamma, \tau^{2}$.
 
 Before starting, is important to denote that $\mu_{i}$ is given by $\alpha, \beta, \gamma, x_{i}$ and $x_{i} = {x_{1}, ... , x_{n}}$. So, let's start with $\tau^{2}$:
 
@@ -286,7 +285,7 @@ $$~$$
 
 As we can seen, in the previous section we derived the full-conditionals of the four hyper-parameters $\alpha, \beta, \gamma, \tau^{2}$. 
 
-We recognized that the distribution of $\tau^{2} \sim InvGamma\Big(a+\frac{n}{2}, \,\, b + \frac{\sum_{i=1}^{n}(y_{i}-(\alpha-\beta\gamma^{x_{i}}))^2}{2} \Big)$ and also the $\alpha \sim N\Big( \hat{\mu} = \frac{\frac{\sum_{i=1}^{n} y_{i} + \beta\sum_{i=1}^{n}\gamma^{x_{i}}}{\tau^{2}}}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} \Big) \, and \, \beta \sim N\Big( \hat{\mu} = \frac{\frac{ \alpha\sum_{i=1}^{n}\gamma^{x_{i}} - \sum_{i=1}^{n}y_{i}\gamma^{x_{i}} }{\tau^{2}}}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}}\Big)$ are known distributions (by the usual-fact that we can seen in the slide 95) only the $\gamma$ hyperparameter is the only one which we don't know the proper distribution.
+We recognized that the distribution of $\tau^{2} \sim InvGamma\Big(a+\frac{n}{2}, \,\, b + \frac{\sum_{i=1}^{n}(y_{i}-(\alpha-\beta\gamma^{x_{i}}))^2}{2} \Big)$ and also the $\alpha \sim N\Big( \hat{\mu} = \frac{\frac{\sum_{i=1}^{n} y_{i} + \beta\sum_{i=1}^{n}\gamma^{x_{i}}}{\tau^{2}}}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{n}{\tau^{2}} + \frac{1}{\sigma_{\alpha}^{2}}} \Big) \, and \, \beta \sim N\Big( \hat{\mu} = \frac{\frac{ \alpha\sum_{i=1}^{n}\gamma^{x_{i}} - \sum_{i=1}^{n}y_{i}\gamma^{x_{i}} }{\tau^{2}}}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}} , \,\, \hat{\sigma^{2}} = \frac{1}{\frac{\sum_{i=1}^{n} \gamma^{2x_{i}}}{\tau^{2}} + \frac{1}{\sigma_{\beta}^{2}}}\Big)$ are known distributions only the $\gamma$ hyperparameter is the only one which we don't know the proper distribution.
 
 We can continue to formalize well the parameters that describing $\alpha \, \text{and} \, \beta$, for $\alpha$ we have:
 
@@ -302,7 +301,7 @@ $$
 
 So, we can directly simulate the full-conditional for $\alpha, \beta, \tau^{2}$.
 
-But, for $\gamma$ we must do a slightly different changment.
+But, for $\gamma$ we must do a slightly different changement.
 
 $$~$$
 
@@ -310,7 +309,7 @@ $$~$$
 
 $$~$$
 
-In this step, we use the Hybrid-Kernels technique composed in this case as Metropolis-within-Gibbs. For this reason, we simply have Gibbs samples through the known distribution of $\alpha, \beta, \tau^{2}$ and after that, we infer on the $\gamma$ hyperparameter where the distribution is not known. We can handle the *unormalized* full conditional with the Metropolis Hastings within the Gibbs samplig.
+In this step, we use the Hybrid-Kernels composed in this case as Metropolis-within-Gibbs. For this reason, we simply have Gibbs samples through the known distribution of $\alpha, \beta, \tau^{2}$ and after that, we infer on the $\gamma$ hyperparameter where the distribution is not known. We can handle the *unormalized* full conditional with the Metropolis Hastings within the Gibbs samplig.
 
 The ***Gibbs Sampling*** is an algorithm for getting draws from a posterior distribution when the conditional posteriors are known and symmetric, while we can use ***Metropolis-Hastings (MH)*** to sample from a non-conjugate conditional posterior within each Gibbs iteration.
 
@@ -338,7 +337,7 @@ $$
 
 where $\alpha(x,y)$ = $min\Big\{\frac{\pi(y)p_{y}(x)}{\pi(x)p_{x}(y)},1 \Big\}$
 
-So, proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there, so:
+So, the proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there, so:
 
 $$~$$
 
@@ -516,9 +515,9 @@ acf(gibbs_samples[, "gamma"], main="ACF at different lags of the simulations", x
 grid()
 ```
 
-The ACFs follow good behaviours, because we need to have samples independent each other during new iterations. Here, we see that the correlation that going further from the first lag, this is strictly decreasing and this is a good point!
+The ACFs follow good behaviours, because we need to have samples independent each other during new iterations. Here, we see that the correlation are going further from the first lag, this is strictly decreasing. So, this is a good point!
 
-So, in this case we consider the Monte Carlo Standard Error (MCSE) that is an estimate of the inaccuracy of MC samples for the expectation of posterior samples.
+In this case we consider the Monte Carlo Standard Error (MCSE) that is an estimate of the inaccuracy of MC samples for the expectation of posterior samples.
 
 MCSE is the standard deviation around the posterior mean of these samples associated to their uncertainty during the use of the MCMC or MC algorithms. 
 
@@ -632,7 +631,7 @@ To approximate the posterior predictive distribution using MCMC we simply do thi
 $$~$$
 
 ```{r echo=FALSE}
-# Removing the burn-in period of the first 500 samples
+# Removing the burn-in period of the first 500 samples - first step
 burn_in <- 501
 
 tau_t <- gibbs_samples[burn_in:niter, "tau"]
@@ -640,13 +639,13 @@ alpha_t <- gibbs_samples[burn_in:niter, "alpha"]
 beta_t <- gibbs_samples[burn_in:niter, "beta"]
 gamma_t <- gibbs_samples[burn_in:niter, "gamma"]
 
-# Generating the means with the dugong age equal to 20
-mu_posteriorpredictives <- alpha_t - beta_t*(gamma_t^20)
+# Generating the means with the dugong age equal to 20 - second step
+mu_posteriorpredictives <- alpha_t - beta_t*(gamma_t^20) 
 
-# Generating the observations
+# Generating the observations - third step
 y_preds <- rnorm(n = niter - burn_in, mean = mu_posteriorpredictives, sd = tau_t)
 
-# Showing the expectation of the observations
+# Showing the expectation of the observations - fourth step
 cat(paste("The approximation of the posterior predictive distribution is: ", round(mean(y_preds), 3), "\n", sep = ""))
 cat(paste("The MCSE of the posterior predictive distribution is: ", LaplacesDemon::MCSE(y_preds), "\n", sep = ""))
 ```
