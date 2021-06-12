@@ -8,6 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache = TRUE)
+set.seed(500)
 ```
 
 ## 1.a) Describing the Dugong's data
@@ -64,6 +65,7 @@ $$~$$
 As we can seen, in this homework the statistical model is described by a non-linear regression model; for this reason we want to see something interest considering these two variables together:
 
 ```{r echo=FALSE, fig.align="center"}
+library(truncnorm)
 plot(x_i, y_obs, col="orchid2", xlab="Age", ylab="Length", pch = 19, main = "The Dugong's Data")
 grid()
 ```
@@ -94,7 +96,7 @@ We need to write the joint prior distribution at stake, considering the $\alpha,
 
 $$
 \pi(\alpha, \beta, \gamma, \tau^{2}) = f_{Normal(0, \sigma_{\alpha}^{2})}(\alpha) \cdot f_{Normal(0, \sigma_{\beta}^{2})}(\beta) \cdot f_{Unif(0, 1)}(\gamma) \cdot f_{InvGamma(a, b)}(\tau^{2}) \propto \\
-\propto exp\Big\{ -\frac{\alpha^{2}}{2\sigma_{\alpha}^{2}} \Big\} \cdot \mathbb{I_{(1,\infty)}(\alpha)} \cdot exp\Big\{ -\frac{\beta^{2}}{2\sigma_{\beta}^{2}} \Big\} \cdot \mathbb{I_{(1,\infty)}}(\beta) \cdot \frac{exp\Big\{ -\frac{b}{\tau^{2}} \Big\}}{\tau^{2(a+1)}} \cdot \mathbb{I_{(0,\infty)}}(\tau^2) \cdot \frac{1}{1-0} \cdot \mathbf{I}_{[0, 1]}(\gamma)
+\propto exp\Big\{ -\frac{\alpha^{2}}{2\sigma_{\alpha}^{2}} \Big\} \cdot \mathbb{I_{(1,\infty)}(\alpha)} \cdot exp\Big\{ -\frac{\beta^{2}}{2\sigma_{\beta}^{2}} \Big\} \cdot \mathbb{I_{(1,\infty)}}(\beta) \cdot \frac{exp\Big\{ -\frac{b}{\tau^{2}} \Big\}}{\tau^{2(a+1)}} \cdot \mathbb{I_{(0,\infty)}}(\tau^2) \cdot \frac{1}{1-0} \cdot \mathbb{I}_{[0, 1]}(\gamma)
 $$
 
 In this step, I choose suitable hyperparameters for this statistical model, in order to fit well the main features recognized before.
@@ -142,7 +144,7 @@ Given that $\mu_{i}$ is described as a hyper parameter of the non-linear model, 
 fitted <- lm(Length = x_i, data = dugongdat)
 
 sig_alph <- c(6, 1, 7, 8, 10, 20)
-curve(dnorm(x, mean = 0, sd = sqrt(sig_alph[1])), lwd = 2, xlab = expression(alpha), ylab = "Prior alpha", ylim = c(0, 0.5), xlim=c(-6,6), col = "red")
+curve(dnorm(x, mean = 0, sd = sqrt(sig_alph[1])), lwd = 2, xlab = expression(alpha), ylab = expression(pi(alpha)), ylim = c(0, 0.5), xlim=c(-6,6), col = "red")
 
 for(i in 2:length(sig_alph)) curve(dnorm(x, mean = 0, sd = sqrt(sig_alph[i])), add = T, col = randomcoloR::randomColor())
 
@@ -157,7 +159,7 @@ Instead, for $\sigma_{\beta}^{2}$ we find by simulations:
 
 ```{r echo=FALSE, fig.align="center", warning=FALSE}
 sig_bet <- c(0.05, 0.5, 0.7, 0.9, 1.1, 2)
-curve(dnorm(x, mean = 0, sd = sqrt(sig_bet[1])), lwd = 2, xlab = expression(alpha), ylab = "Prior alpha", ylim = c(0, 2), xlim=c(-1,1), col = "red")
+curve(dnorm(x, mean = 0, sd = sqrt(sig_bet[1])), lwd = 2, xlab = expression(beta), ylab = expression(pi(beta)), ylim = c(0, 2), xlim=c(-1,1), col = "red")
 
 for(i in 2:length(sig_bet)) curve(dnorm(x, mean = 0, sd = sqrt(sig_bet[i])), add = T, col = randomcoloR::randomColor())
 
@@ -221,8 +223,7 @@ fullcond_post_alpha <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_
   
   sd_post <- (sigma_2_alpha*tau)/(length(y_obs)*sigma_2_alpha + tau)
   
-  draw <- rnorm(1, mean = mu_post, sd = sqrt(sd_post))
-  if(draw < 1) draw <- 1 # truncating the negative values, shifting to the positive that starts from 1 to infinity as mentioned in the homework
+  draw <- rtruncnorm(1, a=1, b=Inf, mean = mu_post, sd = sqrt(sd_post))
   return(draw)
 }
 ```
@@ -246,8 +247,7 @@ fullcond_post_beta <- function(y_obs, alpha, beta, gamma, x_ages, tau, sigma_2_b
   
   sd_post <- (sigma_2_beta*tau)/(sigma_2_beta*sum(gamma^(2*x_ages)+tau))
   
-  draw <- rnorm(1, mean = mu_post, sd = sqrt(sd_post))
-  if(draw < 1) draw <- 1 # truncating the negative values, shifting to the positive that starts from 1 to infinity as mentioned in the homework
+  draw <- rtruncnorm(1, a=1, b=Inf, mean = mu_post, sd = sqrt(sd_post))
   return(draw)
 }
 ```
@@ -259,7 +259,7 @@ $$
 \propto \pi(y_{obs}|\mu_{i}, \tau^{2}) \pi(\gamma) \propto \\
 \propto (2\pi\tau^{2})^{-\frac{n}{2}} \cdot exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot \mathbb{I_{[0,1]}(\gamma)} \propto \\
 \propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n}\Big( y_{i} - (\alpha - \beta\gamma^{x_{i}})\Big)^{2} \Big\} \cdot \mathbb{I_{[0,1]}(\gamma)} \propto \\
-\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n} \Big( \beta^{2}\gamma^{2x_{i}} - 2\alpha\beta\gamma^{x_{i}} + 2y_{i}\beta\gamma^{x_{i}} \Big) \Big\}
+\propto exp\Big\{ -\frac{1}{2\tau^{2}} \sum_{i=1}^{n} \Big( \beta^{2}\gamma^{2x_{i}} - 2\alpha\beta\gamma^{x_{i}} + 2y_{i}\beta\gamma^{x_{i}} \Big) \Big\} \cdot \mathbb{I_{[0,1]}(\gamma)}
 $$
 
 ```{r include=FALSE}
@@ -270,7 +270,7 @@ notknown_fullcond_post_gamma <- function(y_obs, alpha, beta, gamma, x_ages, tau)
   for(i in 1:length(y_obs)) sum_for_postgamma <- sum_for_postgamma + ( (beta^2)*gamma^(2*x_ages[i]) - 2*alpha*beta*gamma^(x_ages[i]) + 2*y_obs[i]*beta*gamma^(x_ages[i]))
   
   # update the theta hyperparameter gamma
-  gamma_post <- ((-1/(2*tau))*sum_for_postgamma)*1
+  gamma_post <- ((-1/(2*tau))*sum_for_postgamma)
   return(gamma_post)
 }
 ```
@@ -337,16 +337,32 @@ $$
 
 where $\alpha(x,y)$ = $min\Big\{\frac{\pi(y)p_{y}(x)}{\pi(x)p_{x}(y)},1 \Big\}$
 
-So, the proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there, so:
+So, the proposals that yield a higher conditional posterior evaluation are always accepted. However, proposals with lower density evaluations are only sometimes accepted. Over many iterations, draws from the posterior’s high density areas are accepted and the sequence of accepted proposals “climbs” to the high density area. Once the sequence arrives in this high-density area, it tends to remain there.
+
+$$~$$
+
+### Gibbs sampler Algorithm
+
+The main structure of our algorithm based on hybrid-kernels is structure based on the gibbs sampler algorithm. Considering the preliminary notation when $\theta = (\theta_1, ..., \theta_i, ..., \theta_k) \in \Theta \subset \mathbb{R}^k$ Given a target $\pi(\theta) = \pi(\theta_1, ..., \theta_k)$ the corresponding full conditionals will be denoted with:
+
+$$
+\pi(\theta_i | \theta_{(i)}) = \pi(\theta_i|\theta_1, \theta_2, ..., \theta_{i-1}, \theta_{i+1}, ..., \theta_k) \,\,\, \text{the chain changes in this way..} \\
+\theta_1^{t+1} \sim \pi(\theta_1|\theta_{(1)}) = \pi(\theta_1|\theta_2^t, ..., \theta_k^t) \\
+\theta_2^{t+1} \sim \pi(\theta_2|\theta_{(2)}) = \pi(\theta_2|\theta_1^{t+1},\theta_3^t, ..., \theta_k^t) \\
+... \\
+\theta_k^{t+1} \sim \pi(\theta_k|\theta_{(k)}) = \pi(\theta_k|\theta_1^{t+1},\theta_2^{t+1}, ..., \theta_{k-1}^{t+1}) \\
+$$
+
+So, now we are moving on iterate and find the proper hyperparameters:
 
 $$~$$
 
 ```{r}
 # MH algorithm to sample from the notknown-full-cond of gamma
-notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_ages, tau, a, greekpi, mhtrials){ # greekpi is the target distro
+notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_ages, tau, a, greekpi, nsims){ # greekpi is the target distro
   gamma_t <- currentstate # current state of theta in the chain
   
-  for(i in 1:mhtrials){
+  for(i in 1:nsims){
     # draw a candidate for the next/future state of the chain 
     gamma_prop <- runif(1, min=0, max=1)
     
@@ -379,7 +395,7 @@ sigma_2_b <- 0.05
 gibbs_samples <- data.frame(tau = rep(NA, niter), alpha = rep(NA, niter), beta = rep(NA, niter), gamma = rep(NA, niter))
 
 # initialize the state t = 0
-gibbs_samples[1, 1:4] <- c(0.03, 0, 0, 0) # tau is greater than zero, because is on the denominator 
+gibbs_samples[1, 1:4] <- c(0.03, 1.01, 1.01, 0) # tau is greater than zero, because is on the denominator, alpha and beta are >1 
 
 # save for each iteration the mean of the parameters ( useful for the point 1.h )
 mean_at_time_t <- list(mean_tau = rep(NA, niter), mean_alpha = rep(NA, niter), mean_beta = rep(NA, niter), mean_gamma = rep(NA, niter))
@@ -389,12 +405,12 @@ for(t in 1:niter){
   gibbs_samples[t+1, "tau"] <- fullcond_post_tau(y_obs, a, b, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_i)
   
   # define the random-walk MH for the other parameters alpha, beta and gamma
-  gibbs_samples[t+1, "alpha"] <- fullcond_post_alpha(y_obs = y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_alpha = sigma_2_a)
+  gibbs_samples[t+1, "alpha"] <- fullcond_post_alpha(y_obs = y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t+1, "tau"], sigma_2_alpha = sigma_2_a)
 
-  gibbs_samples[t+1, "beta"] <- fullcond_post_beta(y_obs = y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], sigma_2_beta = sigma_2_b)
+  gibbs_samples[t+1, "beta"] <- fullcond_post_beta(y_obs = y_obs, alpha = gibbs_samples[t+1, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t+1, "tau"], sigma_2_beta = sigma_2_b)
   
 
-  gibbs_samples[t+1, "gamma"] <- notknown_fullcond_post_gamma_MH(y_obs, alpha = gibbs_samples[t, "alpha"], beta = gibbs_samples[t, "beta"], currentstate = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t, "tau"], a = 1, greekpi = notknown_fullcond_post_gamma, mhtrials = 5)
+  gibbs_samples[t+1, "gamma"] <- notknown_fullcond_post_gamma_MH(y_obs, alpha = gibbs_samples[t+1, "alpha"], beta = gibbs_samples[t+1, "beta"], currentstate = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t+1, "tau"], a = 1, greekpi = notknown_fullcond_post_gamma, nsims = 1000)
   
   # save for each iteration the mean of the parameters ( useful for the point 1.h )
   mean_at_time_t$mean_alpha[t] <- mean(gibbs_samples[1:t, "alpha"])
@@ -487,21 +503,20 @@ $$~$$
 
 $$~$$
 
-Here, there are the averages of the simulations of each parameter analyzed:
+Here, there are the averages of the simulations of each parameter analyzed without the burn-in period:
 
 $$~$$
 
 ```{r echo=FALSE}
-cat(paste("the average of tau at t iterations is: ", tail(mean_at_time_t$mean_tau, n=1), "\n", sep = "") )
-cat(paste("the average of alpha at t iterations is: ", tail(mean_at_time_t$mean_alpha, n=1), "\n", sep = "") )
-cat(paste("the average of beta at t iterations is: ", tail(mean_at_time_t$mean_beta, n=1), "\n", sep = "") )
-cat(paste("the average of gamma at t iterations is: ", tail(mean_at_time_t$mean_gamma, n=1), "\n", sep = "") )
+burn_in <- 501 # removing the burn-in period to have a better mean approximation
+
+cat(paste("the average of tau at t iterations is: ", tail(mean_at_time_t$mean_tau[burn_in:niter], n=1), "\n", sep = "") )
+cat(paste("the average of alpha at t iterations is: ", tail(mean_at_time_t$mean_alpha[burn_in:niter], n=1), "\n", sep = "") )
+cat(paste("the average of beta at t iterations is: ", tail(mean_at_time_t$mean_beta[burn_in:niter], n=1), "\n", sep = "") )
+cat(paste("the average of gamma at t iterations is: ", tail(mean_at_time_t$mean_gamma[burn_in:niter], n=1), "\n", sep = "") )
 ```
 
 $$~$$
-
-We consider a particular tool to estimate the approximation error in order to taking into account positive and possible autocorrelations between the samples that we sampled before. 
-
 We can also visualize the different auto-correlation functions of each hyperparameter:
 
 ```{r echo=FALSE, fig.align="center"}
@@ -517,30 +532,7 @@ grid()
 
 The ACFs follow good behaviours, because we need to have samples independent each other during new iterations. Here, we see that the correlation are going further from the first lag, this is strictly decreasing. So, this is a good point!
 
-In this case we consider the Monte Carlo Standard Error (MCSE) that is an estimate of the inaccuracy of MC samples for the expectation of posterior samples.
-
-MCSE is the standard deviation around the posterior mean of these samples associated to their uncertainty during the use of the MCMC or MC algorithms. 
-
-$$~$$
-
-```{r echo=FALSE}
-cat(paste("the MCSE of tau at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"tau"]), 3), "\n", sep=""))
-cat(paste("the MCSE of alpha at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"alpha"]), 3), "\n", sep=""))
-cat(paste("the MCSE of beta at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"beta"]), 3), "\n", sep=""))
-cat(paste("the MCSE of gamma at t iterations is: ", round(LaplacesDemon::MCSE(gibbs_samples[,"gamma"]), 3), "\n", sep=""))
-```
-
-$$~$$
-
-these values are pretty interesting because our estimation errors are lower, so we can have maybe the good uncertainty that we are in the correct region where sampling the parameters.
-
-$$~$$
-
-# 1.l) Which parameter has the largest posterior uncertainty? How did you measure it?
-
-$$~$$
-
-In order to measure which is the posterior parameter with the largest posterior uncertainty, we use the formula of the variance in the case of MCMC and not in the case of MC, because the formula is sligthly different and because with the variance of MC we consider the samples as independent. 
+For estimating the error of our hyper parameters, we can consider initially the formula of the variance MCMC, not in the case of MC, because the formula is sligthly different and because with the variance of MC we consider the samples as independent. 
 
 We emphasized the fact that the $\mathbf{E}[\mathbf{\hat{I}}_{t}] = \mathbf{E}_{\pi}[h(X)]$ but for the variance we have:
 
@@ -585,7 +577,88 @@ cat(paste("the variance of gamma at t iterations is: ", var(gibbs_samples[,"gamm
 
 $$~$$
 
-the hyperparameter with the largest posterior uncertainty is $\alpha$
+the hyperparameter with the largest posterior uncertainty is $\alpha$.
+
+Is important to denote that we can consider also a particular tool to estimate better the approximation error in order to taking into account positive and possible autocorrelations between the samples that we sampled before. 
+
+In this case we consider the Monte Carlo Standard Error (MCSE) that is an estimate of the inaccuracy of MC samples for the expectation of posterior samples.
+
+MCSE is the standard deviation around the posterior mean of these samples associated to their uncertainty during the use of the MCMC or MC algorithms. 
+
+$$~$$
+
+```{r echo=FALSE}
+cat(paste("the MCSE of tau at t iterations is: ", LaplacesDemon::MCSE(gibbs_samples[,"tau"]), "\n", sep=""))
+cat(paste("the MCSE of alpha at t iterations is: ", LaplacesDemon::MCSE(gibbs_samples[,"alpha"]), "\n", sep=""))
+cat(paste("the MCSE of beta at t iterations is: ", LaplacesDemon::MCSE(gibbs_samples[,"beta"]), "\n", sep=""))
+cat(paste("the MCSE of gamma at t iterations is: ", LaplacesDemon::MCSE(gibbs_samples[,"gamma"]), "\n", sep=""))
+```
+
+$$~$$
+
+We can say again that $\alpha$ has the lower MCSE and gives a higher error respect other ones.
+
+$$~$$
+
+# 1.l) Which parameter has the largest posterior uncertainty? How did you measure it?
+
+$$~$$
+The largest posterior uncertainty for the hyper parameters handled by us is based on considering the ***confidence interval at 95% level***, So for $\tau^2$:
+
+$$~$$
+
+```{r fig.align="center"}
+conf_tau_t <- quantile(gibbs_samples[,"tau"], prob=c(0.025,0.975))
+plot(density(gibbs_samples[,"tau"]), xlab = expression(tau^2), ylab = "Density", xlim = c(0.03, 0.11), lwd = 2, col = "red", main = "Confidence interval for tau")
+abline(v = conf_tau_t[1], lty=2)
+abline(v = conf_tau_t[2], lty=2)
+cat(paste("lower side - ", conf_tau_t[1], "\nupper side - ", conf_tau_t[2], "\nwith difference: ", conf_tau_t[2] - conf_tau_t[1],"\n", sep=""))
+```
+
+$$~$$
+
+For $\alpha$:
+
+$$~$$
+
+```{r fig.align="center"}
+conf_alpha_t <- quantile(gibbs_samples[,"alpha"], prob=c(0.025,0.975))
+plot(density(gibbs_samples[,"alpha"]), xlab = expression(alpha), ylab = "Density", xlim = c(2.20, 3.10), lwd = 2, col = "red", main = "Confidence interval for alpha")
+abline(v = conf_alpha_t[1], lty=2)
+abline(v = conf_alpha_t[2], lty=2)
+cat(paste("lower side - ", conf_alpha_t[1], "\nupper side - ", conf_alpha_t[2], "\nwith difference: ", conf_alpha_t[2] - conf_alpha_t[1],"\n", sep=""))
+```
+
+$$~$$
+
+For $\beta$:
+
+$$~$$
+
+```{r fig.align="center"}
+conf_beta_t <- quantile(gibbs_samples[,"beta"], prob=c(0.025,0.975))
+plot(density(gibbs_samples[,"beta"]), xlab = expression(beta), ylab = "Density", xlim = c(0.98, 1.20), lwd = 2, col = "red", main = "Confidence interval for beta")
+abline(v = conf_beta_t[1], lty=2)
+abline(v = conf_beta_t[2], lty=2)
+cat(paste("lower side - ", conf_beta_t[1], "\nupper side - ", conf_beta_t[2], "\nwith difference: ", conf_beta_t[2] - conf_beta_t[1],"\n", sep=""))
+```
+
+$$~$$
+For $\gamma$:
+
+$$~$$
+
+```{r fig.align="center"}
+conf_gamma_t <- quantile(gibbs_samples[,"gamma"], prob=c(0.025,0.975))
+plot(density(gibbs_samples[,"gamma"]), xlab = expression(gamma), ylab = "Density", xlim = c(0.35, 1), lwd = 2, col = "red", main = "Confidence interval for gamma")
+abline(v = conf_gamma_t[1], lty=2)
+abline(v = conf_gamma_t[2], lty=2)
+cat(paste("lower side - ", conf_gamma_t[1], "\nupper side - ", conf_gamma_t[2], "\nwith difference: ", conf_gamma_t[2] - conf_gamma_t[1],"\n", sep=""))
+```
+
+$$~$$
+
+We can say also here that $\alpha$ has the higher posterior uncertainty.
 
 $$~$$
 
@@ -781,7 +854,7 @@ prop.table(table(nsim))
 
 $$~$$
 
-## 2c) repeat the simulation for 500 times and record only the final state at time t = 1000 for each of the 500 simulated chains. Compute the relative frequency of the 500 final states. What distribution are you approximating in this way? Try to formalize the difference between this point and the previous point.
+## 2.c) repeat the simulation for 500 times and record only the final state at time t = 1000 for each of the 500 simulated chains. Compute the relative frequency of the 500 final states. What distribution are you approximating in this way? Try to formalize the difference between this point and the previous point.
 
 $$~$$
 
