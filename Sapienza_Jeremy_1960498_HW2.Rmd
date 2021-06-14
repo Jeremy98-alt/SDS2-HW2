@@ -25,7 +25,7 @@ head(dugongdat)
 
 $$~$$
 
-Now, we save the column of lenghts within $y_{obs}$ and the column of ages within $x_{i}$. After that we can show some characteristics of these two variables:
+Now, we save the column of lenghts within $y_{obs}$ and the column of ages within $x_{i}$. After that, we can show some characteristics of these two variables:
 
 ```{r echo=FALSE, include=FALSE}
 y_obs <- as.numeric(dugongdat$Length)
@@ -65,7 +65,7 @@ $$~$$
 As we can seen, in this homework the statistical model is described by a non-linear regression model; for this reason we want to see something interest considering these two variables together:
 
 ```{r echo=FALSE, fig.align="center"}
-library(truncnorm)
+library(truncnorm) # used later
 plot(x_i, y_obs, col="orchid2", xlab="Age", ylab="Length", pch = 19, main = "The Dugong's Data")
 grid()
 ```
@@ -265,13 +265,17 @@ $$
 ```{r include=FALSE}
 # unknown distro of gamma
 notknown_fullcond_post_gamma <- function(y_obs, alpha, beta, gamma, x_ages, tau){
-  # get the summatory of each yobs with each ui
-  sum_for_postgamma <- 0
-  for(i in 1:length(y_obs)) sum_for_postgamma <- sum_for_postgamma + ( (beta^2)*gamma^(2*x_ages[i]) - 2*alpha*beta*gamma^(x_ages[i]) + 2*y_obs[i]*beta*gamma^(x_ages[i]))
-  
-  # update the theta hyperparameter gamma
-  gamma_post <- ((-1/(2*tau))*sum_for_postgamma)
-  return(gamma_post)
+  if(gamma >= 0 && gamma <= 1){
+    # get the summatory of each yobs with each ui
+    sum_for_postgamma <- 0
+    for(i in 1:length(x_ages)) sum_for_postgamma <- sum_for_postgamma + ((beta^2)*(gamma^(2*x_ages[i])) - 2*alpha*beta*(gamma^x_ages[i]) + 2*y_obs[i]*beta*(gamma^x_ages[i]))
+    
+    # update the theta hyperparameter gamma
+    gamma_post <- ((-1/(2*tau))*sum_for_postgamma)
+    return(gamma_post)
+  } else {
+    return(-Inf)
+  }
 }
 ```
 
@@ -343,7 +347,7 @@ $$~$$
 
 ### Gibbs sampler Algorithm
 
-The main structure of our algorithm based on hybrid-kernels is structure based on the gibbs sampler algorithm. Considering the preliminary notation when $\theta = (\theta_1, ..., \theta_i, ..., \theta_k) \in \Theta \subset \mathbb{R}^k$ Given a target $\pi(\theta) = \pi(\theta_1, ..., \theta_k)$ the corresponding full conditionals will be denoted with:
+Considering the preliminary notation when $\theta = (\theta_1, ..., \theta_i, ..., \theta_k) \in \Theta \subset \mathbb{R}^k$ Given a target $\pi(\theta) = \pi(\theta_1, ..., \theta_k)$ the corresponding full conditionals will be denoted with:
 
 $$
 \pi(\theta_i | \theta_{(i)}) = \pi(\theta_i|\theta_1, \theta_2, ..., \theta_{i-1}, \theta_{i+1}, ..., \theta_k) \,\,\, \text{the chain changes in this way..} \\
@@ -361,25 +365,31 @@ $$~$$
 # MH algorithm to sample from the notknown-full-cond of gamma
 notknown_fullcond_post_gamma_MH <- function(y_obs, alpha, beta, currentstate, x_ages, tau, a, greekpi, nsims){ # greekpi is the target distro
   gamma_t <- currentstate # current state of theta in the chain
+  acceptance <- 0 # calculate the acceptance rate
   
   for(i in 1:nsims){
     # draw a candidate for the next/future state of the chain 
-    gamma_prop <- runif(1, min=0, max=1)
+    noise <- runif(1, min = -a, max = a)
+    
+    gamma_prop <- gamma_t + noise
     
     # acceptance/rejection auxiliary draw
     r_num <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta, gamma = gamma_prop, x_ages = x_ages, tau = tau)
     r_den <- greekpi(y_obs = y_obs, alpha = alpha, beta = beta, gamma = gamma_t, x_ages = x_ages, tau = tau)
     
-    r <- exp(r_num-r_den)
-    rmin <- min(r, 1)
-    
+    r <- r_num - r_den # ratio acceptance
+
     # acc/rj method
-    omega = runif(1,min=0,max=1)
-    ACCEPT=(omega < rmin)
-    gamma_t <- ifelse(ACCEPT,gamma_prop, gamma_t)
+    omega = runif(1, min=0, max=1)
+    ACCEPT= log(omega) <= min(r, 0)
+    
+    if(ACCEPT){
+      acceptance <- acceptance + 1
+      gamma_t <- gamma_prop
+    }
   }
   
-  return(gamma_t)
+  return(list(percentage = acceptance/nsims, actual_draw = gamma_t))
 }
 
 # set the number of iterations T
@@ -409,8 +419,7 @@ for(t in 1:niter){
 
   gibbs_samples[t+1, "beta"] <- fullcond_post_beta(y_obs = y_obs, alpha = gibbs_samples[t+1, "alpha"], beta = gibbs_samples[t, "beta"], gamma = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t+1, "tau"], sigma_2_beta = sigma_2_b)
   
-
-  gibbs_samples[t+1, "gamma"] <- notknown_fullcond_post_gamma_MH(y_obs, alpha = gibbs_samples[t+1, "alpha"], beta = gibbs_samples[t+1, "beta"], currentstate = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t+1, "tau"], a = 1, greekpi = notknown_fullcond_post_gamma, nsims = 1000)
+  gibbs_samples[t+1, "gamma"] <- notknown_fullcond_post_gamma_MH(y_obs, alpha = gibbs_samples[t+1, "alpha"], beta = gibbs_samples[t+1, "beta"], currentstate = gibbs_samples[t, "gamma"], x_ages = x_i, tau = gibbs_samples[t+1, "tau"], a = 0.4, greekpi = notknown_fullcond_post_gamma, nsims = 100)$actual_draw # after checking the good tune parameter a
   
   # save for each iteration the mean of the parameters ( useful for the point 1.h )
   mean_at_time_t$mean_alpha[t] <- mean(gibbs_samples[1:t, "alpha"])
@@ -577,7 +586,7 @@ cat(paste("the variance of gamma at t iterations is: ", var(gibbs_samples[,"gamm
 
 $$~$$
 
-the hyperparameter with the largest posterior uncertainty is $\alpha$.
+the hyperparameter with the largest posterior uncertainty calculated with the MCMC Variance is $\alpha$.
 
 Is important to denote that we can consider also a particular tool to estimate better the approximation error in order to taking into account positive and possible autocorrelations between the samples that we sampled before. 
 
@@ -694,12 +703,12 @@ $$
 
 considering $y_{pred}$ within the model and considering it as an unknown quantity. This option could be included within the MCMC methods with a posterior distribution $\pi(\theta|y)$
 
-To approximate the posterior predictive distribution using MCMC we simply do this steps:
+To approximate the posterior predictive distribution using MCMC we simply do these steps:
 
 1. Removes the burn-in period where the values are unstabilized
-2. Generates different means with the age of dugong equal to 20
+2. Generates different means with the age of dugong equal to 20 (in this first step)
 3. Generates the different observations
-4. Approximates the posterior predictive distribution and sees the Monte Carlo standard deviation as the best approximate standard deviation error
+4. Approximates the posterior predictive distribution and sees the Monte Carlo standard deviation as the better approximation standard deviation error
 
 $$~$$
 
@@ -771,7 +780,7 @@ $$~$$
 
 $$~$$
 
-The second prediction gives less precision than the previous. Due, to the approximation errors (MCSE) of the corresponding cases.
+The second prediction gives less precision than the previous. Due, to the approximation errors (MCSE) of the corresponding cases, but you can also see by the histograms plotted before.
 
 $$~$$
 
@@ -906,7 +915,16 @@ prop.table(table(final_state))
 
 $$~$$
 
-As we can see above, these are the relative frequency of the 500 simulated chains. The behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain. In this case, we are going to focus on the steady state (also known as ***stationary state***). Here we are able of making different samplings in that region that more likely is the best way to approximate the posterior region.
+As we can see above, these are the relative frequency of the 500 simulated chains. The behaviour is sligthly changed to the fact that we consider 500 times the simulations of 1000 iterations of a Markov Chain. In this case, we are going to focus on the steady state (also known as ***stationary state***).
+
+In order to try to formalize this part, we can say that the Markov Chain admits the *ergodic property* and means that this brings other properties i.e. the irreducibility and aperiodicity properties. Here there are the following definitions: 
+
+- ***irreducibility*** means that *exists a sequence of transitions of non-zero probability from any state to any other*
+- ***aperiodicity*** means that the *states are not partitioned into sets like whole the state transitions occur cyclically from one set to another one* - 
+
+point *b* approximates the stationary distribution $\pi$, given the ergodic property that says $\mathbb{P}_{X_0}^{(t)}(\cdot) \approx \pi(\cdot)$. Instead, point *c* assumes that there are 500 indipendent markov chains in which we have at the end a state $\pi_i$ considering the whole indipendent chains we will have the final probability that converges to $\pi$. 
+
+n.b: This is possibile, from the fact that there is a probability to have a particular state $\pi_i$ through all indipendent markov chains (this gives the relative frequencies) multiplied by the total number of indipendent markov chains. This gives at the end the exact probability state $\pi_i$. 
 
 Now, we want to make some inference on the relative frequencies captured at each iteration of the final state of the markov chain, so:
 
@@ -957,7 +975,7 @@ $$
 this matrix allows us to understand with how much probability I'm going to move from a state to another state, for example there is the probability of $\frac{1}{2}$ to go from the state 1 to 2 and so on.
 
 The question of the steady state is: *"is there a vector of storing these probabilities?"*
-The vector is called tradionally as vector of probabilities $\pi = [\pi_1, \pi_2, \pi_3]$, this vector takes into account the probability of each state.
+The vector is called traditionally as vector of probabilities $\pi = [\pi_1, \pi_2, \pi_3]$, this vector takes into account the probability of each state.
 
 The $\sum_{j=1}^{d} \pi_j = 1 \, \wedge \forall \pi_j \geqslant 0$, so if I have $\pi_1 = 0.5, \pi_2 = 0.5 \,\text{and}\, \pi_3 = 0$ means that I'm in the state $\pi_1$ or $\pi_2$ with that corresponding probabilities.
 
